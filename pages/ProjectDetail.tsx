@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
 import { StatusBadge } from '../components/StatusBadge';
 import { MilestoneStatus, DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate } from '../types';
 import { generateExecutiveRiskAnalysis, generateDailyLog, analyzeRiskPattern } from '../services/geminiService';
@@ -28,6 +29,9 @@ export const ProjectDetail: React.FC = () => {
   const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysis | null>(null);
   const [analyzingRisk, setAnalyzingRisk] = useState(false);
 
+  // Mock Chart Data State
+  const [chartData, setChartData] = useState<any[]>([]);
+
   // Fetch Data from Supabase
   const fetchData = async () => {
       if (!id) return;
@@ -53,6 +57,15 @@ export const ProjectDetail: React.FC = () => {
 
           if (updatesError) throw updatesError;
           setDailyUpdates(updatesData || []);
+
+          // 3. Generate Mock Chart Data (Simulating Resource Utilization)
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const mockData = months.map(m => ({
+              name: m,
+              planned: Math.floor(Math.random() * 100) + 100, // Random between 100-200
+              actual: Math.floor(Math.random() * 80) + 90,   // Random between 90-170
+          }));
+          setChartData(mockData);
 
       } catch (err: any) {
           console.error('Error loading project:', err);
@@ -163,7 +176,7 @@ export const ProjectDetail: React.FC = () => {
   const currentStatus = dailyUpdates[0]?.status_today as ProjectStatus || ProjectStatus.ON_TRACK;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 relative pb-20">
+    <div className="space-y-8 animate-in fade-in duration-500 relative pb-20">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center text-sm text-slate-500 mb-2">
           <Link to="/" className="hover:text-slate-900 transition-colors font-medium">Dashboard</Link>
@@ -251,6 +264,86 @@ export const ProjectDetail: React.FC = () => {
                  </div>
             </div>
          </div>
+      </div>
+
+      {/* EXECUTIVE ANALYTICS SECTION */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Main Chart Card */}
+          <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h3 className="font-bold text-slate-900 text-base">Average Utilization</h3>
+                    <p className="text-slate-500 text-xs mt-1">Resource allocation vs capacity over time</p>
+                </div>
+                <div className="flex gap-4 text-xs font-medium">
+                    <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> Planned effort
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Capacity
+                    </div>
+                </div>
+              </div>
+              <div className="flex-1 h-64 min-h-[250px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis 
+                            dataKey="name" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                            dy={10}
+                          />
+                          <YAxis 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                          />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="planned" 
+                            stroke="#fbbf24" 
+                            strokeWidth={3} 
+                            dot={false} 
+                            activeDot={{ r: 6, fill: '#fbbf24', stroke: '#fff', strokeWidth: 2 }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="actual" 
+                            stroke="#10b981" 
+                            strokeWidth={3} 
+                            dot={false}
+                            activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} 
+                          />
+                      </LineChart>
+                  </ResponsiveContainer>
+              </div>
+          </div>
+
+          {/* Side Cards */}
+          <div className="space-y-6 flex flex-col">
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col justify-center items-center relative overflow-hidden">
+                  <h4 className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-3 z-10">Completion Progress</h4>
+                  <div className="text-5xl font-bold text-slate-900 z-10 tracking-tight">30%</div>
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-100">
+                      <div className="h-full bg-slate-900 w-[30%]"></div>
+                  </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col justify-center items-center relative overflow-hidden">
+                  <h4 className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-3 z-10">Budget Consumed</h4>
+                  <div className="text-5xl font-bold text-slate-900 z-10 tracking-tight">
+                    {project.budget_consumed_percent}%
+                  </div>
+                  {/* Decorative faint background dollar */}
+                  <DollarSign className="absolute -bottom-4 -right-4 text-slate-50 opacity-50 rotate-12" size={120} />
+              </div>
+          </div>
       </div>
 
       {/* AI Insight Box */}
