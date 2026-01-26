@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
 export const EditProject: React.FC = () => {
@@ -117,7 +117,7 @@ export const EditProject: React.FC = () => {
       return (
           <div className="flex flex-col items-center justify-center min-h-[50vh]">
               <Loader2 className="animate-spin text-blue-600 mb-4" size={32} />
-              <p className="text-slate-500">Loading project details...</p>
+              <p className="text-slate-500 font-medium">Retrieving project data...</p>
           </div>
       );
   }
@@ -126,39 +126,49 @@ export const EditProject: React.FC = () => {
     <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
+        <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white border border-slate-200 text-slate-700 rounded-xl flex items-center justify-center shadow-sm">
                 <LayoutDashboard size={24} />
             </div>
             <div>
-                <h1 className="text-2xl font-bold text-slate-900">Edit Project</h1>
-                <p className="text-slate-500">Update project details and status.</p>
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Edit Project</h1>
+                <p className="text-slate-500 text-sm">Update configuration for {formData.project_name}.</p>
             </div>
         </div>
-        <button 
-            type="button"
-            onClick={handleDelete}
-            className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors font-medium text-sm"
-        >
-            <Trash2 size={16} />
-            Delete Project
-        </button>
+        <div className="flex gap-3">
+            <button 
+                type="button"
+                onClick={() => navigate(`/projects/${id}`)}
+                className="flex items-center gap-2 px-4 py-2 text-slate-600 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors font-bold text-sm shadow-sm"
+            >
+                <Eye size={16} />
+                View Details
+            </button>
+            <button 
+                type="button"
+                onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors font-bold text-sm shadow-sm"
+            >
+                <Trash2 size={16} />
+                Delete
+            </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
         
         {errorMsg && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-                <AlertCircle size={20} />
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm font-medium">
+                <AlertCircle size={18} />
                 <span>{errorMsg}</span>
             </div>
         )}
 
         {/* Project Name */}
         <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Project Name <span className="text-red-500">*</span></label>
-            <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Project Name <span className="text-red-500">*</span></label>
+            <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
                     <LayoutDashboard size={18} />
                 </div>
                 <input
@@ -167,7 +177,7 @@ export const EditProject: React.FC = () => {
                     required
                     value={formData.project_name}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400 font-medium transition-all"
                     placeholder="e.g. ERP Migration Phase 1"
                 />
             </div>
@@ -176,16 +186,16 @@ export const EditProject: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Type */}
             <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Project Type</label>
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Project Type</label>
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
                         <Tag size={18} />
                     </div>
                     <select
                         name="type"
                         value={formData.type}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 bg-white"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 bg-white appearance-none transition-all"
                     >
                         <option value="Digital">Digital</option>
                         <option value="Marketing">Marketing</option>
@@ -198,9 +208,9 @@ export const EditProject: React.FC = () => {
 
             {/* Owner */}
             <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Owner / PM</label>
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Owner / PM</label>
+                <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
                         <User size={18} />
                     </div>
                     <input
@@ -209,7 +219,7 @@ export const EditProject: React.FC = () => {
                         required
                         value={formData.owner}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400 font-medium transition-all"
                         placeholder="e.g. Somchai Jai-dee"
                     />
                 </div>
@@ -217,9 +227,9 @@ export const EditProject: React.FC = () => {
 
             {/* Start Date */}
             <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Start Date</label>
-                <div className="relative">
-                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Start Date</label>
+                <div className="relative group">
+                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
                         <Calendar size={18} />
                     </div>
                     <input
@@ -228,16 +238,16 @@ export const EditProject: React.FC = () => {
                         required
                         value={formData.start_date}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
                     />
                 </div>
             </div>
 
             {/* End Date */}
             <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Target End Date</label>
-                <div className="relative">
-                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Target End Date</label>
+                <div className="relative group">
+                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
                         <Calendar size={18} />
                     </div>
                     <input
@@ -246,31 +256,31 @@ export const EditProject: React.FC = () => {
                         required
                         value={formData.end_date}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
                     />
                 </div>
             </div>
         </div>
 
         {/* Active Status Toggle */}
-        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <span className="block text-sm font-bold text-slate-700 mb-3">Project Status</span>
+        <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
+            <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lifecycle Status</span>
             <div className="flex gap-4">
                 <button
                     type="button"
                     onClick={() => handleToggleActive(true)}
-                    className={`flex-1 py-2 px-4 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 transition-all ${formData.active ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                    className={`flex-1 py-3 px-4 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${formData.active ? 'bg-emerald-600 border-emerald-600 text-white shadow-emerald-200' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'}`}
                 >
                     <CheckCircle2 size={18} />
-                    Active
+                    Active Project
                 </button>
                 <button
                     type="button"
                     onClick={() => handleToggleActive(false)}
-                    className={`flex-1 py-2 px-4 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 transition-all ${!formData.active ? 'bg-slate-200 border-slate-400 text-slate-800' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                    className={`flex-1 py-3 px-4 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${!formData.active ? 'bg-slate-700 border-slate-700 text-white shadow-slate-300' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'}`}
                 >
                     <XCircle size={18} />
-                    Inactive / Archived
+                    Archived / Inactive
                 </button>
             </div>
         </div>
@@ -279,17 +289,17 @@ export const EditProject: React.FC = () => {
              <button
                 type="button"
                 onClick={() => navigate('/dashboard')}
-                className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-bold text-sm"
             >
                 Cancel
             </button>
             <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold flex items-center gap-2 shadow-md disabled:opacity-70"
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 text-sm"
             >
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                Update Project
+                Save Changes
             </button>
         </div>
       </form>

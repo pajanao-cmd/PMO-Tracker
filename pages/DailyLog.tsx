@@ -80,21 +80,21 @@ export const DailyLog: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-10 space-y-6 animate-in fade-in duration-500 pb-20">
+    <div className="max-w-2xl mx-auto mt-6 space-y-6 animate-in fade-in duration-500 pb-20">
       
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center justify-center gap-2">
-          <PenLine className="text-blue-600" />
-          Daily Log Entry
-        </h1>
-        <p className="text-slate-500 mt-2">Update progress for your active projects.</p>
+        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+            <PenLine size={24} />
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900">Daily Progress Log</h1>
+        <p className="text-slate-500 mt-2 text-sm">Record your key achievements and potential blockers for the day.</p>
       </div>
 
-      <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
+      <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
         
         {/* Project Dropdown */}
         <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Select Project <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Project <span className="text-red-500">*</span></label>
             <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                     <LayoutDashboard size={18} />
@@ -103,7 +103,7 @@ export const DailyLog: React.FC = () => {
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
                     disabled={loadingProjects}
-                    className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-slate-300 shadow-sm text-slate-900 bg-white appearance-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full pl-10 pr-10 py-3 rounded-lg border border-slate-300 shadow-sm text-slate-900 bg-white appearance-none focus:ring-blue-500 focus:border-blue-500 font-medium"
                 >
                     <option value="">{loadingProjects ? 'Loading Projects...' : '-- Choose Project --'}</option>
                     {projects.map(p => (
@@ -118,20 +118,20 @@ export const DailyLog: React.FC = () => {
 
         {/* Status */}
         <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Status Today</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status Today</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {['On Track', 'At Risk', 'Delayed', 'Completed'].map((s) => (
                     <button
                         key={s}
                         type="button"
                         onClick={() => setStatusToday(s)}
-                        className={`py-2 px-3 rounded-lg text-sm font-bold border transition-all ${
+                        className={`py-2.5 px-3 rounded-lg text-sm font-bold border transition-all shadow-sm ${
                             statusToday === s 
-                                ? s === 'On Track' ? 'bg-emerald-100 border-emerald-500 text-emerald-700'
-                                : s === 'At Risk' ? 'bg-amber-100 border-amber-500 text-amber-700'
-                                : s === 'Delayed' ? 'bg-red-100 border-red-500 text-red-700'
-                                : 'bg-blue-100 border-blue-500 text-blue-700'
-                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                ? s === 'On Track' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-1 ring-emerald-500'
+                                : s === 'At Risk' ? 'bg-amber-50 border-amber-500 text-amber-700 ring-1 ring-amber-500'
+                                : s === 'Delayed' ? 'bg-red-50 border-red-500 text-red-700 ring-1 ring-red-500'
+                                : 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500'
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
                         }`}
                     >
                         {s}
@@ -142,30 +142,30 @@ export const DailyLog: React.FC = () => {
 
         {/* Progress Note */}
         <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">What did you achieve today? <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Achievements <span className="text-red-500">*</span></label>
             <textarea
                 value={progressNote}
                 onChange={(e) => setProgressNote(e.target.value)}
-                placeholder="Briefly describe completed tasks..."
-                className="w-full h-32 p-4 text-slate-800 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none"
+                placeholder="Briefly describe what was completed today..."
+                className="w-full h-32 p-4 text-slate-800 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none text-sm leading-relaxed shadow-sm transition-shadow"
             />
         </div>
 
         {/* Blockers */}
         <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2 text-red-600">Any Blockers? (Optional)</label>
+            <label className="block text-xs font-bold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1"><AlertCircle size={12} /> Blockers / Risks</label>
             <textarea
                 value={blocker}
                 onChange={(e) => setBlocker(e.target.value)}
-                placeholder="What is stopping you from progressing?"
-                className="w-full h-20 p-4 text-slate-800 border border-red-200 bg-red-50/50 rounded-lg focus:ring-red-500 focus:border-red-500 resize-none placeholder:text-red-300"
+                placeholder="What is impeding progress? (Leave blank if none)"
+                className="w-full h-20 p-4 text-slate-800 border border-slate-200 bg-slate-50 rounded-lg focus:ring-red-500 focus:border-red-500 focus:bg-white resize-none placeholder:text-slate-400 text-sm leading-relaxed transition-all"
             />
         </div>
       </div>
 
       {/* Error Message */}
       {errorMsg && (
-        <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-100 font-medium animate-in slide-in-from-top-1">
+        <div className="flex items-center gap-2 text-red-700 text-sm bg-red-50 p-4 rounded-lg border border-red-200 font-medium animate-in slide-in-from-top-1">
           <AlertCircle size={16} />
           <span>{errorMsg}</span>
         </div>
@@ -175,18 +175,18 @@ export const DailyLog: React.FC = () => {
       <button
         onClick={handleSave}
         disabled={isSaving || loadingProjects}
-        className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-sm relative z-20
+        className={`w-full py-4 rounded-xl font-bold text-base transition-all duration-200 flex items-center justify-center gap-2 shadow-md relative z-20
           ${saveStatus === 'success' 
-            ? 'bg-emerald-500 text-white hover:bg-emerald-600' 
-            : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed'
+            ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200' 
+            : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed shadow-blue-200'
           }
         `}
       >
-        {isSaving && <Loader2 className="animate-spin" size={24} />}
-        {saveStatus === 'success' && <Check size={24} />}
-        {saveStatus === 'idle' && !isSaving && <Save size={24} />}
+        {isSaving && <Loader2 className="animate-spin" size={20} />}
+        {saveStatus === 'success' && <Check size={20} />}
+        {saveStatus === 'idle' && !isSaving && <Save size={20} />}
         
-        {isSaving ? 'Saving to Database...' : saveStatus === 'success' ? 'Saved Successfully' : 'Submit Daily Log'}
+        {isSaving ? 'Saving...' : saveStatus === 'success' ? 'Saved Successfully' : 'Submit Daily Log'}
       </button>
 
     </div>
