@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, TrendingUp, AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Activity, TrendingUp, AlertTriangle, CheckCircle, Loader2, RefreshCw, Trash2, Edit } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { DashboardProject } from '../types';
 
@@ -14,7 +14,7 @@ export const Dashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch all active projects
+      // 1. Fetch all projects (including inactive ones if you want to manage them)
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
@@ -23,12 +23,6 @@ export const Dashboard: React.FC = () => {
       if (projectsError) throw projectsError;
 
       // 2. Fetch latest update for each project
-      // Note: While we could use complex joins, doing a second query for updates is often simpler/safer 
-      // if we don't have specific foreign keys or RLS complexity set up perfectly.
-      // But let's try a direct relational query first if 'project_daily_updates' is linked.
-      // Since schema instructions didn't specify the FK name explicitly beyond 'project_id',
-      // we will manual join in JS for guaranteed safety given the "No console.log" rule.
-      
       const { data: updatesData, error: updatesError } = await supabase
         .from('project_daily_updates')
         .select('project_id, status_today, update_date, created_at')
@@ -62,10 +56,26 @@ export const Dashboard: React.FC = () => {
     fetchDashboardData();
   }, []);
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${name}"?\nThis action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const { error } = await supabase.from('projects').delete().eq('id', id);
+        if (error) throw error;
+        
+        // Remove from local state immediately for better UX
+        setProjects(prev => prev.filter(p => p.id !== id));
+    } catch (err: any) {
+        alert('Error deleting project: ' + err.message);
+    }
+  };
+
   // Calculate Stats
   const totalProjects = projects.length;
   const activeProjects = projects.filter(p => p.active).length;
-  const atRiskCount = projects.filter(p => p.latest_update?.status_today === 'At Risk' || p.latest_update?.status_today === 'Delayed').length;
+  const atRiskCount = projects.filter(p => p.active && (p.latest_update?.status_today === 'At Risk' || p.latest_update?.status_today === 'Delayed')).length;
 
   return (
     <div className="space-y-8 pb-20">
@@ -113,7 +123,7 @@ export const Dashboard: React.FC = () => {
                 <div className="p-3 bg-red-50 text-red-600 rounded-lg"><AlertTriangle size={24} /></div>
             </div>
             <div className="text-4xl font-bold text-slate-900">{atRiskCount}</div>
-            <div className="text-sm font-medium text-slate-500 mt-1">At Risk / Delayed</div>
+            <div className="text-sm font-medium text-slate-500 mt-1">Active At Risk / Delayed</div>
         </div>
       </div>
 
@@ -141,6 +151,7 @@ export const Dashboard: React.FC = () => {
                             <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Latest Update</th>
                             <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
@@ -153,10 +164,10 @@ export const Dashboard: React.FC = () => {
                              if (status === 'Completed') badgeClass = 'bg-blue-100 text-blue-800 border border-blue-200';
 
                              return (
-                                <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                                <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm font-bold text-slate-900">{p.project_name}</div>
-                                        {!p.active && <span className="text-[10px] bg-slate-200 px-1 rounded text-slate-600">Inactive</span>}
+                                        {!p.active && <span className="text-[10px] bg-slate-200 px-1 rounded text-slate-600 font-semibold border border-slate-300">Inactive</span>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{p.owner}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -171,6 +182,24 @@ export const Dashboard: React.FC = () => {
                                         <span className={`px-3 py-1 text-xs rounded-full font-bold ${badgeClass}`}>
                                             {status}
                                         </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={() => navigate(`/projects/${p.id}/edit`)}
+                                                className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors"
+                                                title="Edit Project"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDelete(p.id, p.project_name)}
+                                                className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                                                title="Delete Project"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                              );
