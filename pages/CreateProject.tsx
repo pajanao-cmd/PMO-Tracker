@@ -1,63 +1,58 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard } from 'lucide-react';
-import { MOCK_PROJECTS } from '../mockData';
-import { ProjectStatus, ProjectDetail } from '../types';
+import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 
 export const CreateProject: React.FC = () => {
   const navigate = useNavigate();
   
   // Form State
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    project_name: '',
     type: 'Digital',
     owner: '',
-    startDate: '',
-    endDate: ''
+    start_date: '',
+    end_date: ''
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMsg(null);
     
-    // Create new Project Object
-    // In a real app, this would be a POST request to Supabase
-    const newProject: ProjectDetail = {
-        id: crypto.randomUUID(),
-        name: formData.name,
-        description: formData.description || 'No description provided.',
-        owner_id: 'u-temp-' + Math.floor(Math.random() * 1000),
-        // Mocking the joined User object
-        owner: {
-            id: 'u-temp-' + Math.floor(Math.random() * 1000),
-            name: formData.owner || 'Unassigned',
-            role: 'PM'
-        },
-        start_date: formData.startDate || new Date().toISOString().split('T')[0],
-        end_date: formData.endDate || new Date(Date.now() + 7776000000).toISOString().split('T')[0], // +90 days approx
-        status: ProjectStatus.ON_TRACK,
-        budget_consumed_percent: 0,
-        tags: [formData.type, 'New'],
-        milestones: [],
-        updates: []
-    };
+    try {
+        const { error } = await supabase
+            .from('projects')
+            .insert([
+                {
+                    project_name: formData.project_name,
+                    owner: formData.owner,
+                    type: formData.type,
+                    start_date: formData.start_date || new Date().toISOString().split('T')[0],
+                    end_date: formData.end_date || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    active: true
+                }
+            ]);
 
-    // Push to mock store
-    MOCK_PROJECTS.push(newProject);
-    
-    // Simulate API delay
-    setTimeout(() => {
+        if (error) throw error;
+
+        // Redirect to dashboard on success
+        navigate('/dashboard');
+
+    } catch (error: any) {
+        console.error('Error creating project:', error);
+        setErrorMsg(error.message || 'Failed to create project');
+    } finally {
         setIsSubmitting(false);
-        navigate('/');
-    }, 800);
+    }
   };
 
   return (
@@ -69,12 +64,19 @@ export const CreateProject: React.FC = () => {
         </div>
         <div>
             <h1 className="text-2xl font-bold text-slate-900">New Project Master</h1>
-            <p className="text-slate-500">Create a new project tracking entity manually.</p>
+            <p className="text-slate-500">Register a new initiative into the PMO Tracker.</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
         
+        {errorMsg && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                <AlertCircle size={20} />
+                <span>{errorMsg}</span>
+            </div>
+        )}
+
         {/* Project Name */}
         <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Project Name <span className="text-red-500">*</span></label>
@@ -84,28 +86,13 @@ export const CreateProject: React.FC = () => {
                 </div>
                 <input
                     type="text"
-                    name="name"
+                    name="project_name"
                     required
-                    value={formData.name}
+                    value={formData.project_name}
                     onChange={handleChange}
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400"
-                    placeholder="e.g. MyNews - Training Phase 1"
+                    placeholder="e.g. ERP Migration Phase 1"
                     autoFocus
-                />
-            </div>
-        </div>
-
-        {/* Description */}
-        <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Description</label>
-            <div className="relative">
-                <textarea
-                    name="description"
-                    rows={3}
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="w-full p-4 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm resize-none text-slate-900 placeholder:text-slate-400"
-                    placeholder="Brief objective of the project..."
                 />
             </div>
         </div>
@@ -124,10 +111,10 @@ export const CreateProject: React.FC = () => {
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 bg-white"
                     >
-                        <option value="Digital">Digital Transformation</option>
-                        <option value="Training">Training & Adoption</option>
-                        <option value="Internal">Internal Operations</option>
+                        <option value="Digital">Digital</option>
+                        <option value="Marketing">Marketing</option>
                         <option value="Infrastructure">Infrastructure</option>
+                        <option value="Process Improvement">Process Improvement</option>
                         <option value="Other">Other</option>
                     </select>
                 </div>
@@ -147,7 +134,7 @@ export const CreateProject: React.FC = () => {
                         value={formData.owner}
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400"
-                        placeholder="e.g. Sarah Chen"
+                        placeholder="e.g. Somchai Jai-dee"
                     />
                 </div>
             </div>
@@ -161,9 +148,9 @@ export const CreateProject: React.FC = () => {
                     </div>
                     <input
                         type="date"
-                        name="startDate"
+                        name="start_date"
                         required
-                        value={formData.startDate}
+                        value={formData.start_date}
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900"
                     />
@@ -179,9 +166,9 @@ export const CreateProject: React.FC = () => {
                     </div>
                     <input
                         type="date"
-                        name="endDate"
+                        name="end_date"
                         required
-                        value={formData.endDate}
+                        value={formData.end_date}
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900"
                     />
@@ -192,7 +179,7 @@ export const CreateProject: React.FC = () => {
         <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">
              <button
                 type="button"
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/dashboard')}
                 className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
             >
                 Cancel
@@ -202,8 +189,8 @@ export const CreateProject: React.FC = () => {
                 disabled={isSubmitting}
                 className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold flex items-center gap-2 shadow-md disabled:opacity-70"
             >
-                {isSubmitting ? 'Creating...' : 'Create Project'}
-                {!isSubmitting && <ArrowRight size={18} />}
+                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
+                Create Project
             </button>
         </div>
       </form>

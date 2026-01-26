@@ -9,24 +9,24 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <div className="min-h-screen flex bg-slate-50 text-slate-900 font-sans">
-      {/* Sidebar - Enterprise Dark */}
+      {/* Sidebar */}
       <aside className="w-72 bg-[#0f172a] text-slate-300 flex-shrink-0 flex flex-col fixed h-full z-20 shadow-xl">
         <div className="p-6 flex items-center gap-3 border-b border-slate-800/50">
            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
               <div className="w-3 h-3 bg-white rounded-full"></div>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white tracking-tight leading-none">Orbit PMO</h1>
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Enterprise Edition</span>
+              <h1 className="text-lg font-bold text-white tracking-tight leading-none">PMO Tracker</h1>
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Production</span>
             </div>
         </div>
         
         <div className="px-4 py-6">
             <div className="mb-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Main Menu</div>
             <nav className="space-y-1">
-              <NavLink to="/" icon={<LayoutDashboard size={18} />} label="Executive Board" active={isActive('/')} />
-              <NavLink to="/create" icon={<PlusCircle size={18} />} label="New Project Master" active={isActive('/create')} />
-              <NavLink to="/daily" icon={<NotebookPen size={18} />} label="Daily Log Entry" active={isActive('/daily')} />
+              <NavLink to="/dashboard" icon={<LayoutDashboard size={18} />} label="Executive Dashboard" active={isActive('/dashboard')} />
+              <NavLink to="/projects/new" icon={<PlusCircle size={18} />} label="New Project Master" active={isActive('/projects/new')} />
+              <NavLink to="/daily-log" icon={<NotebookPen size={18} />} label="Daily Log Entry" active={isActive('/daily-log')} />
             </nav>
 
             <div className="mt-8 mb-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">System</div>
@@ -45,14 +45,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <p className="text-sm font-medium text-white truncate">Elena Fisher</p>
               <p className="text-xs text-slate-500 truncate">Head of PMO</p>
             </div>
-            <Settings size={16} className="text-slate-500 cursor-pointer hover:text-white transition-colors" />
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 ml-72 flex flex-col min-h-screen transition-all duration-300">
-        {/* Sticky Top Header */}
+        {/* Header */}
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <span className="hover:text-slate-800 transition-colors cursor-pointer">Portfolio</span>
@@ -61,6 +60,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
 
           <div className="flex items-center gap-4">
+             {/* Search */}
             <div className="hidden md:flex items-center bg-slate-100/50 px-3 py-1.5 rounded-md border border-slate-200 text-slate-400 text-sm w-64 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
                 <Search size={14} className="mr-2" />
                 <input type="text" placeholder="Search projects..." className="bg-transparent border-none focus:ring-0 text-slate-700 w-full placeholder:text-slate-400 text-xs" />
