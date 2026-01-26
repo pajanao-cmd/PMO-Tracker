@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { ArrowRight, AlertTriangle, Clock, FileText, X, Loader2, Sparkles, Wand2, ClipboardPaste, ShieldCheck, Calendar, Filter, Download, MoreHorizontal, TrendingUp, TrendingDown, Activity, AlertCircle } from 'lucide-react';
+import { ArrowRight, AlertTriangle, Clock, FileText, X, Loader2, Sparkles, Wand2, ClipboardPaste, ShieldCheck, Calendar, Filter, Download, MoreHorizontal, TrendingUp, TrendingDown, Activity, AlertCircle, PlusCircle } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import { MOCK_PROJECTS } from '../mockData';
 import { ProjectStatus, SmartUpdate } from '../types';
@@ -124,7 +124,7 @@ export const Dashboard: React.FC = () => {
                     <Activity size={20} />
                 </div>
                 <span className="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                    <TrendingUp size={12} className="mr-1" /> +2
+                    <TrendingUp size={12} className="mr-1" /> {MOCK_PROJECTS.length > 0 ? '+2' : '0'}
                 </span>
             </div>
             <div className="text-3xl font-bold text-slate-900">{stats.total}</div>
@@ -133,7 +133,7 @@ export const Dashboard: React.FC = () => {
 
         {/* KPI 2: Critical Risks */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-            <div className="absolute right-0 top-0 h-full w-1 bg-red-500"></div>
+            <div className={`absolute right-0 top-0 h-full w-1 ${stats.delayed > 0 ? 'bg-red-500' : 'bg-slate-200'}`}></div>
             <div className="flex justify-between items-start mb-4">
                 <div className="p-2 bg-red-50 text-red-600 rounded-lg">
                     <AlertTriangle size={20} />
@@ -167,15 +167,17 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <span className="text-xs font-medium text-slate-400">Total CapEx</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">68%</div>
+            <div className="text-3xl font-bold text-slate-900">
+                {MOCK_PROJECTS.length > 0 ? '68%' : '0%'}
+            </div>
             <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
-                <div className="bg-slate-800 h-1.5 rounded-full" style={{ width: '68%' }}></div>
+                <div className="bg-slate-800 h-1.5 rounded-full" style={{ width: MOCK_PROJECTS.length > 0 ? '68%' : '0%' }}></div>
             </div>
         </div>
       </div>
 
       {/* Main Board View */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
         {/* Toolbar */}
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
           <div className="flex items-center gap-2">
@@ -194,77 +196,92 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50 text-slate-500">
-              <tr>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Project Name</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Owner</th>
-                <th scope="col" className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Health</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider w-48">Progress / Budget</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Latest Update</th>
-                <th scope="col" className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider"></th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-100">
-              {MOCK_PROJECTS.map((project) => (
-                <tr key={project.id} className="hover:bg-blue-50/30 transition-colors group cursor-pointer" onClick={() => navigate(`/project/${project.id}`)}>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{project.name}</span>
-                        <div className="flex gap-1.5 mt-1.5">
-                            {project.tags.slice(0, 2).map(tag => (
-                                <span key={tag} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 font-medium rounded-md border border-slate-200">{tag}</span>
-                            ))}
+        {MOCK_PROJECTS.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50 text-slate-500">
+                  <tr>
+                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Project Name</th>
+                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Owner</th>
+                    <th scope="col" className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Health</th>
+                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider w-48">Progress / Budget</th>
+                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Latest Update</th>
+                    <th scope="col" className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider"></th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-100">
+                  {MOCK_PROJECTS.map((project) => (
+                    <tr key={project.id} className="hover:bg-blue-50/30 transition-colors group cursor-pointer" onClick={() => navigate(`/project/${project.id}`)}>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{project.name}</span>
+                            <div className="flex gap-1.5 mt-1.5">
+                                {project.tags.slice(0, 2).map(tag => (
+                                    <span key={tag} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 font-medium rounded-md border border-slate-200">{tag}</span>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-white shadow-sm">
-                            {project.owner.name.charAt(0)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-white shadow-sm">
+                                {project.owner.name.charAt(0)}
+                            </div>
+                            <span className="text-sm font-medium text-slate-600">{project.owner.name}</span>
                         </div>
-                        <span className="text-sm font-medium text-slate-600">{project.owner.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <StatusBadge status={project.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-full">
-                        <div className="flex justify-between text-xs mb-1.5 font-medium">
-                            <span className="text-slate-500">Budget</span>
-                            <span className="text-slate-900">{project.budget_consumed_percent}%</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <StatusBadge status={project.status} />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="w-full">
+                            <div className="flex justify-between text-xs mb-1.5 font-medium">
+                                <span className="text-slate-500">Budget</span>
+                                <span className="text-slate-900">{project.budget_consumed_percent}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-100">
+                                <div 
+                                    className={`h-full rounded-full transition-all duration-1000 ${project.budget_consumed_percent > 90 ? 'bg-red-500' : 'bg-blue-600'}`} 
+                                    style={{ width: `${project.budget_consumed_percent}%` }}
+                                ></div>
+                            </div>
                         </div>
-                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-100">
-                            <div 
-                                className={`h-full rounded-full transition-all duration-1000 ${project.budget_consumed_percent > 90 ? 'bg-red-500' : 'bg-blue-600'}`} 
-                                style={{ width: `${project.budget_consumed_percent}%` }}
-                            ></div>
-                        </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                     <div className="relative pl-3 border-l-2 border-slate-200">
-                        <p className="text-sm text-slate-600 line-clamp-2">
-                            {project.updates[0]?.summary_text || "No updates yet."}
-                        </p>
-                        <span className="text-[10px] text-slate-400 mt-1 block font-mono">
-                            {project.updates[0]?.week_ending || 'No Date'}
-                        </span>
-                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all">
-                        <MoreHorizontal size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                      </td>
+                      <td className="px-6 py-4">
+                         <div className="relative pl-3 border-l-2 border-slate-200">
+                            <p className="text-sm text-slate-600 line-clamp-2">
+                                {project.updates[0]?.summary_text || "No updates yet."}
+                            </p>
+                            <span className="text-[10px] text-slate-400 mt-1 block font-mono">
+                                {project.updates[0]?.week_ending || 'No Date'}
+                            </span>
+                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <button className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all">
+                            <MoreHorizontal size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+        ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-slate-500">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    <Activity size={32} className="text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">No Active Projects</h3>
+                <p className="max-w-xs mx-auto mt-2 text-sm text-slate-400">Your portfolio is currently empty. Initialize a new project master to get started.</p>
+                <Link to="/create" className="mt-6 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2">
+                    <PlusCircle size={18} />
+                    Create First Project
+                </Link>
+            </div>
+        )}
+
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 mt-auto">
             <span>Showing {MOCK_PROJECTS.length} active projects</span>
             <div className="flex gap-2">
                 <button className="px-3 py-1 border border-slate-300 bg-white rounded hover:bg-slate-50 disabled:opacity-50">Previous</button>
@@ -291,7 +308,11 @@ export const Dashboard: React.FC = () => {
                   </div>
                   
                   <div className="flex-1 overflow-y-auto p-8">
-                      {isGeneratingBriefing ? (
+                      {MOCK_PROJECTS.length === 0 ? (
+                           <div className="flex flex-col items-center justify-center h-48 text-slate-500">
+                               <p>No projects available to analyze.</p>
+                           </div>
+                      ) : isGeneratingBriefing ? (
                           <div className="h-64 flex flex-col items-center justify-center text-slate-500 gap-4">
                               <Loader2 className="animate-spin text-blue-600" size={40} />
                               <p className="animate-pulse font-medium">Analyzing portfolio signals...</p>

@@ -1,36 +1,39 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, Loader2, Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard } from 'lucide-react';
-import { extractNewProjectFromText } from '../services/geminiService';
-import { ProjectDraft } from '../types';
+import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard, Briefcase } from 'lucide-react';
 
 export const CreateProject: React.FC = () => {
   const navigate = useNavigate();
-  const [inputText, setInputText] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [draft, setDraft] = useState<ProjectDraft | null>(null);
+  
+  // Form State
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    type: 'Digital',
+    owner: '',
+    startDate: '',
+    endDate: ''
+  });
 
-  const handleAnalyze = async () => {
-    if (!inputText.trim()) return;
-    setIsAnalyzing(true);
-    
-    try {
-        const result = await extractNewProjectFromText(inputText);
-        setDraft(result);
-    } catch (e) {
-        console.error(e);
-    } finally {
-        setIsAnalyzing(false);
-    }
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCreate = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
     // In a real app, this would POST to Supabase
-    console.log("Creating project:", draft);
-    // Simulate delay
+    console.log("Creating project manually:", formData);
+    
+    // Simulate API delay
     setTimeout(() => {
+        setIsSubmitting(false);
         navigate('/');
-    }, 1000);
+    }, 800);
   };
 
   return (
@@ -42,100 +45,141 @@ export const CreateProject: React.FC = () => {
         </div>
         <div>
             <h1 className="text-2xl font-bold text-slate-900">New Project Master</h1>
-            <p className="text-slate-500">Describe the project in plain text (Thai/English). AI will structure it.</p>
+            <p className="text-slate-500">Create a new project tracking entity manually.</p>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <label className="block text-sm font-medium text-slate-700 mb-2">Project Description</label>
-        <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            className="w-full h-32 p-4 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm resize-none text-slate-800"
-            placeholder="e.g. MyNews - Training ผู้ใช้งานฝ่ายข่าว คาดว่าจะเสร็จหลังเลือกตั้ง"
-            autoFocus
-        />
-        <div className="mt-4 flex justify-end">
-            <button
-                onClick={handleAnalyze}
-                disabled={isAnalyzing || !inputText.trim()}
-                className="bg-slate-900 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-slate-800 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
+        
+        {/* Project Name */}
+        <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Project Name <span className="text-red-500">*</span></label>
+            <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <LayoutDashboard size={18} />
+                </div>
+                <input
+                    type="text"
+                    name="name"
+                    required
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400"
+                    placeholder="e.g. MyNews - Training Phase 1"
+                    autoFocus
+                />
+            </div>
+        </div>
+
+        {/* Description */}
+        <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Description</label>
+            <div className="relative">
+                <textarea
+                    name="description"
+                    rows={3}
+                    value={formData.description}
+                    onChange={handleChange}
+                    className="w-full p-4 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm resize-none text-slate-900 placeholder:text-slate-400"
+                    placeholder="Brief objective of the project..."
+                />
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Type */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Project Type</label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Tag size={18} />
+                    </div>
+                    <select
+                        name="type"
+                        value={formData.type}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 bg-white"
+                    >
+                        <option value="Digital">Digital Transformation</option>
+                        <option value="Training">Training & Adoption</option>
+                        <option value="Internal">Internal Operations</option>
+                        <option value="Infrastructure">Infrastructure</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Owner */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Owner / PM</label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <User size={18} />
+                    </div>
+                    <input
+                        type="text"
+                        name="owner"
+                        value={formData.owner}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400"
+                        placeholder="e.g. Sarah Chen"
+                    />
+                </div>
+            </div>
+
+            {/* Start Date */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Start Date</label>
+                <div className="relative">
+                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Calendar size={18} />
+                    </div>
+                    <input
+                        type="date"
+                        name="startDate"
+                        value={formData.startDate}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900"
+                    />
+                </div>
+            </div>
+
+            {/* End Date */}
+            <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Target End Date</label>
+                <div className="relative">
+                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Calendar size={18} />
+                    </div>
+                    <input
+                        type="date"
+                        name="endDate"
+                        value={formData.endDate}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900"
+                    />
+                </div>
+            </div>
+        </div>
+
+        <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">
+             <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
             >
-                {isAnalyzing ? <Loader2 className="animate-spin" size={18} /> : <Bot size={18} />}
-                Analyze & Extract
+                Cancel
+            </button>
+            <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold flex items-center gap-2 shadow-md disabled:opacity-70"
+            >
+                {isSubmitting ? 'Creating...' : 'Create Project'}
+                {!isSubmitting && <ArrowRight size={18} />}
             </button>
         </div>
-      </div>
-
-      {draft && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden animate-in slide-in-from-bottom-4">
-            <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                    <LayoutDashboard className="text-blue-600" size={18} />
-                    Draft Preview
-                </h3>
-                <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">Review before creating</span>
-            </div>
-            
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Project Name</label>
-                    <div className="text-xl font-bold text-slate-900 mt-1">{draft.project_name}</div>
-                </div>
-
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                        <Tag size={12} /> Type
-                    </label>
-                    <div className="mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                        {draft.project_type}
-                    </div>
-                </div>
-
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                        <Calendar size={12} /> Target Date
-                    </label>
-                    <div className={`mt-1 text-sm font-medium ${draft.target_date ? 'text-slate-900' : 'text-slate-400 italic'}`}>
-                        {draft.target_date || 'Not specified (TBD)'}
-                    </div>
-                </div>
-
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                        <User size={12} /> Owner
-                    </label>
-                    <div className={`mt-1 text-sm font-medium ${draft.owner ? 'text-slate-900' : 'text-slate-400 italic'}`}>
-                        {draft.owner || 'Unassigned'}
-                    </div>
-                </div>
-
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Initial Status</label>
-                    <div className="mt-1">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            {draft.initial_status}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                <button 
-                    onClick={() => setDraft(null)}
-                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-white transition-colors"
-                >
-                    Discard
-                </button>
-                <button 
-                    onClick={handleCreate}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 shadow-sm"
-                >
-                    Confirm & Create Project <ArrowRight size={16} />
-                </button>
-            </div>
-        </div>
-      )}
+      </form>
     </div>
   );
 };
