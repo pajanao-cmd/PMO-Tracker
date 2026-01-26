@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Settings, Bell, User, NotebookPen } from 'lucide-react';
+import { LayoutDashboard, Settings, Bell, User, NotebookPen, PlusCircle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -22,6 +22,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <Link to="/" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${location.pathname === '/' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
             <LayoutDashboard size={20} />
             Executive Board
+          </Link>
+          <Link to="/create" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${location.pathname === '/create' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
+            <PlusCircle size={20} />
+            New Project
           </Link>
           <Link to="/daily" className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${location.pathname === '/daily' ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
             <NotebookPen size={20} />
