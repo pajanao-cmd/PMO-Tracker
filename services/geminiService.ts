@@ -235,7 +235,13 @@ export const processDataIngestion = async (rawText: string, projects: {id: strin
         });
 
         if (response.text) {
-            const result = JSON.parse(response.text);
+            // Clean potentially markdown-wrapped JSON
+            let cleanText = response.text.trim();
+            if (cleanText.startsWith('```')) {
+                cleanText = cleanText.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+            }
+            
+            const result = JSON.parse(cleanText);
             
             // Post-process to match SmartUpdate interface expected by UI
             const matchedProject = projects.find(p => 
