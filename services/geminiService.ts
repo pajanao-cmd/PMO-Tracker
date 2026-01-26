@@ -104,6 +104,75 @@ Rules:
     }
 };
 
+export const generateWeeklyReport = async (
+    projectName: string,
+    dailyLogs: DailyLog[]
+): Promise<{
+    summary_text: string;
+    risks_blockers: string;
+    next_steps: string;
+    rag_status: string;
+} | null> => {
+    const ai = getClient();
+    if (!ai) return null;
+
+    if (dailyLogs.length === 0) {
+        return {
+            summary_text: "No daily logs recorded for this week.",
+            risks_blockers: "None",
+            next_steps: "Resume daily logging.",
+            rag_status: "On Track"
+        };
+    }
+
+    const prompt = `
+    Role: PMO Executive Reporting Assistant.
+    
+    Task: Synthesize the last 7 days of daily logs into a Weekly Status Report for stakeholders.
+
+    Project: ${projectName}
+
+    Daily Logs Input:
+    ${JSON.stringify(dailyLogs)}
+
+    Requirements:
+    1. summary_text: A high-level paragraph highlighting key achievements this week.
+    2. risks_blockers: Consolidate any blockers mentioned. If none, state "No critical blockers."
+    3. next_steps: Suggest logical next steps based on progress and blockers.
+    4. rag_status: Determine overall status (On Track, At Risk, Delayed) based on the logs.
+
+    Output format: JSON
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary_text: { type: Type.STRING },
+                        risks_blockers: { type: Type.STRING },
+                        next_steps: { type: Type.STRING },
+                        rag_status: { type: Type.STRING, enum: ['On Track', 'At Risk', 'Delayed', 'Completed'] }
+                    },
+                    required: ["summary_text", "risks_blockers", "next_steps", "rag_status"],
+                }
+            }
+        });
+
+        if (response.text) {
+            return JSON.parse(response.text);
+        }
+        return null;
+    } catch (error) {
+        console.error("Gemini API Error (Weekly Report):", error);
+        return null;
+    }
+};
+
 export const generateMondayBriefing = async (projects: ProjectDetail[]): Promise<string> => {
     const ai = getClient();
     if (!ai) return "<p>Gemini API Key not configured.</p>";

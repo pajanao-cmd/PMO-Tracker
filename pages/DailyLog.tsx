@@ -9,6 +9,7 @@ export const DailyLog: React.FC = () => {
   
   // Form State
   const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [progressNote, setProgressNote] = useState('');
   const [statusToday, setStatusToday] = useState('On Track');
   const [blocker, setBlocker] = useState('');
@@ -46,6 +47,11 @@ export const DailyLog: React.FC = () => {
         return;
     }
 
+    if (!logDate) {
+        setErrorMsg('Please select a valid date.');
+        return;
+    }
+
     setIsSaving(true);
     setErrorMsg('');
 
@@ -55,7 +61,7 @@ export const DailyLog: React.FC = () => {
             .insert([
                 {
                     project_id: selectedProjectId,
-                    update_date: new Date().toISOString().split('T')[0],
+                    update_date: logDate,
                     status_today: statusToday,
                     progress_note: progressNote,
                     blocker_today: blocker.trim() || null
@@ -67,6 +73,7 @@ export const DailyLog: React.FC = () => {
         setSaveStatus('success');
         setProgressNote('');
         setBlocker('');
+        // Don't reset date or project for ease of multiple entries
         // Reset success message after 3 seconds
         setTimeout(() => setSaveStatus('idle'), 3000);
 
@@ -92,26 +99,44 @@ export const DailyLog: React.FC = () => {
 
       <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
         
-        {/* Project Dropdown */}
-        <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Project <span className="text-red-500">*</span></label>
-            <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                    <LayoutDashboard size={18} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Project Dropdown */}
+            <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Project <span className="text-red-500">*</span></label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <LayoutDashboard size={18} />
+                    </div>
+                    <select
+                        value={selectedProjectId}
+                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                        disabled={loadingProjects}
+                        className="w-full pl-10 pr-10 py-3 rounded-lg border border-slate-300 shadow-sm text-slate-900 bg-white appearance-none focus:ring-blue-500 focus:border-blue-500 font-medium text-sm h-[46px]"
+                    >
+                        <option value="">{loadingProjects ? 'Loading...' : '-- Choose Project --'}</option>
+                        {projects.map(p => (
+                            <option key={p.id} value={p.id}>{p.project_name}</option>
+                        ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
+                        <ChevronDown size={16} />
+                    </div>
                 </div>
-                <select
-                    value={selectedProjectId}
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                    disabled={loadingProjects}
-                    className="w-full pl-10 pr-10 py-3 rounded-lg border border-slate-300 shadow-sm text-slate-900 bg-white appearance-none focus:ring-blue-500 focus:border-blue-500 font-medium"
-                >
-                    <option value="">{loadingProjects ? 'Loading Projects...' : '-- Choose Project --'}</option>
-                    {projects.map(p => (
-                        <option key={p.id} value={p.id}>{p.project_name}</option>
-                    ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
-                    <ChevronDown size={16} />
+            </div>
+
+            {/* Date Picker */}
+            <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Log Date <span className="text-red-500">*</span></label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Calendar size={18} />
+                    </div>
+                    <input
+                        type="date"
+                        value={logDate}
+                        onChange={(e) => setLogDate(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 shadow-sm text-slate-900 focus:ring-blue-500 focus:border-blue-500 font-medium text-sm h-[46px]"
+                    />
                 </div>
             </div>
         </div>
@@ -146,7 +171,7 @@ export const DailyLog: React.FC = () => {
             <textarea
                 value={progressNote}
                 onChange={(e) => setProgressNote(e.target.value)}
-                placeholder="Briefly describe what was completed today..."
+                placeholder="Briefly describe what was completed..."
                 className="w-full h-32 p-4 text-slate-800 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none text-sm leading-relaxed shadow-sm transition-shadow"
             />
         </div>
@@ -186,7 +211,7 @@ export const DailyLog: React.FC = () => {
         {saveStatus === 'success' && <Check size={20} />}
         {saveStatus === 'idle' && !isSaving && <Save size={20} />}
         
-        {isSaving ? 'Saving...' : saveStatus === 'success' ? 'Saved Successfully' : 'Submit Daily Log'}
+        {isSaving ? 'Saving...' : saveStatus === 'success' ? 'Saved Successfully' : 'Submit Log Entry'}
       </button>
 
     </div>
