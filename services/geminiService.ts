@@ -329,23 +329,26 @@ export const extractNewProjectFromText = async (rawText: string): Promise<Projec
     const ai = getClient();
     if (!ai) return null;
 
+    // Strict prompt from user requirements
     const prompt = `
-    You are a Project Master creation assistant.
+    You are an assistant for a PMO tracking system.
 
-    Task: Parse the input text to extract core project definition fields.
-    Input: "${rawText}"
-    (User may type in Thai or English)
+    The user will describe a project in plain text (Thai or English).
+    Your job is to extract structured project information.
 
-    Output Fields:
-    - project_name: Extract the name.
-    - project_type: Classify as 'Digital', 'Training', 'Internal', or 'Other'.
-    - owner: Extract name if mentioned, otherwise null.
-    - target_date: Extract date (YYYY-MM-DD) if explicitly mentioned. If vague (e.g. 'after election'), return null.
-    - initial_status: Always default to 'On Track' unless user explicitly says 'Delayed' or 'At Risk' in the creation text.
+    Rules:
+    - Do NOT invent information.
+    - If a field is not mentioned, return null.
+    - Output JSON only. No explanation.
 
-    Constraints:
-    - Return STRICT JSON.
-    - Do not invent data.
+    Fields:
+    - project_name (string, required)
+    - project_type (string or null, e.g. 'Digital', 'Training', 'Internal', 'Other') 
+    - owner (string or null)
+    - target_date (ISO date string YYYY-MM-DD or null)
+
+    Input:
+    "${rawText}"
     `;
 
     try {
@@ -358,18 +361,28 @@ export const extractNewProjectFromText = async (rawText: string): Promise<Projec
                     type: Type.OBJECT,
                     properties: {
                         project_name: { type: Type.STRING },
-                        project_type: { type: Type.STRING, enum: ['Digital', 'Training', 'Internal', 'Other'] },
+                        project_type: { type: Type.STRING, nullable: true },
                         owner: { type: Type.STRING, nullable: true },
                         target_date: { type: Type.STRING, nullable: true, description: "YYYY-MM-DD" },
-                        initial_status: { type: Type.STRING, default: "On Track" }
                     },
-                    required: ["project_name", "project_type", "initial_status"],
+                    required: ["project_name", "project_type", "owner", "target_date"],
                 }
             }
         });
 
         if (response.text) {
-            return JSON.parse(response.text) as ProjectDraft;
+            const raw = JSON.parse(response.text);
+            
+            // Map to valid ProjectDraft type (Handling defaults)
+            const draft: ProjectDraft = {
+                project_name: raw.project_name || "Untitled Project",
+                project_type: (['Digital', 'Training', 'Internal', 'Other'].includes(raw.project_type) ? raw.project_type : 'Other'),
+                owner: raw.owner,
+                target_date: raw.target_date,
+                initial_status: 'On Track' // Default as per requirements implied in previous steps
+            };
+            
+            return draft;
         }
         return null;
     } catch (error) {

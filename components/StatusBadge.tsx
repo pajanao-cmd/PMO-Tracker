@@ -7,28 +7,57 @@ interface Props {
 }
 
 export const StatusBadge: React.FC<Props> = ({ status, size = 'md' }) => {
-  const styles = {
-    [ProjectStatus.ON_TRACK]: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    [ProjectStatus.AT_RISK]: 'bg-amber-100 text-amber-800 border-amber-200',
-    [ProjectStatus.DELAYED]: 'bg-red-100 text-red-800 border-red-200',
-    [ProjectStatus.COMPLETED]: 'bg-blue-100 text-blue-800 border-blue-200',
-    [ProjectStatus.ON_HOLD]: 'bg-slate-100 text-slate-800 border-slate-200',
+  const config = {
+    [ProjectStatus.ON_TRACK]: {
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-700',
+      border: 'border-emerald-200',
+      dot: 'bg-emerald-500',
+      label: 'On Track'
+    },
+    [ProjectStatus.AT_RISK]: {
+      bg: 'bg-amber-50',
+      text: 'text-amber-700',
+      border: 'border-amber-200',
+      dot: 'bg-amber-500',
+      label: 'At Risk'
+    },
+    [ProjectStatus.DELAYED]: {
+      bg: 'bg-red-50',
+      text: 'text-red-700',
+      border: 'border-red-200',
+      dot: 'bg-red-500',
+      label: 'Delayed'
+    },
+    [ProjectStatus.COMPLETED]: {
+      bg: 'bg-blue-50',
+      text: 'text-blue-700',
+      border: 'border-blue-200',
+      dot: 'bg-blue-500',
+      label: 'Completed'
+    },
+    [ProjectStatus.ON_HOLD]: {
+      bg: 'bg-slate-50',
+      text: 'text-slate-600',
+      border: 'border-slate-200',
+      dot: 'bg-slate-400',
+      label: 'On Hold'
+    },
   };
 
-  const labels = {
-    [ProjectStatus.ON_TRACK]: 'On Track',
-    [ProjectStatus.AT_RISK]: 'At Risk',
-    [ProjectStatus.DELAYED]: 'Delayed',
-    [ProjectStatus.COMPLETED]: 'Completed',
-    [ProjectStatus.ON_HOLD]: 'On Hold',
-  };
-
-  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-0.5 text-sm';
+  const style = config[status];
+  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs';
+  const dotSize = size === 'sm' ? 'w-1 h-1' : 'w-1.5 h-1.5';
 
   return (
-    <span className={`inline-flex items-center justify-center rounded-full font-medium border ${styles[status]} ${sizeClasses}`}>
-      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === ProjectStatus.ON_TRACK ? 'bg-emerald-500' : status === ProjectStatus.AT_RISK ? 'bg-amber-500' : status === ProjectStatus.DELAYED ? 'bg-red-500' : 'bg-blue-500'}`}></span>
-      {labels[status]}
+    <span className={`inline-flex items-center justify-center rounded-full font-semibold border ${style.bg} ${style.text} ${style.border} ${sizeClasses} shadow-sm`}>
+      <span className="relative flex h-2 w-2 mr-1.5 items-center justify-center">
+        {(status === ProjectStatus.DELAYED || status === ProjectStatus.AT_RISK) && (
+             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${style.dot}`}></span>
+        )}
+        <span className={`relative inline-flex rounded-full ${dotSize} ${style.dot}`}></span>
+      </span>
+      {style.label}
     </span>
   );
 };

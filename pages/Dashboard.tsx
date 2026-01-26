@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { ArrowRight, AlertTriangle, CheckCircle, Clock, FileText, X, Loader2, Sparkles, Wand2, ClipboardPaste, ShieldCheck, Calendar } from 'lucide-react';
+import { ArrowRight, AlertTriangle, Clock, FileText, X, Loader2, Sparkles, Wand2, ClipboardPaste, ShieldCheck, Calendar, Filter, Download, MoreHorizontal, TrendingUp, TrendingDown, Activity, AlertCircle } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import { MOCK_PROJECTS } from '../mockData';
 import { ProjectStatus, SmartUpdate } from '../types';
@@ -52,7 +52,6 @@ export const Dashboard: React.FC = () => {
       if (!rawUpdateText.trim()) return;
       
       setIsProcessingUpdate(true);
-      // Pass ID and Name map for Ingestion logic
       const projectsMap = MOCK_PROJECTS.map(p => ({ id: p.id, name: p.name }));
       
       try {
@@ -64,7 +63,6 @@ export const Dashboard: React.FC = () => {
             return;
         }
 
-        // If result has an ID, let's try to fill the name for UI friendliness if missing
         if (result && result.project_id) {
            const found = MOCK_PROJECTS.find(p => p.id === result.project_id);
            if (found && !result.project_name) {
@@ -88,181 +86,190 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Action Header */}
-      <div className="flex justify-between items-center bg-gradient-to-r from-slate-900 to-slate-800 p-6 rounded-xl text-white shadow-lg">
+    <div className="space-y-8 pb-20">
+      {/* Executive Control Panel Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-              <h2 className="text-xl font-bold">Executive Dashboard</h2>
-              <p className="text-slate-400 text-sm mt-1">Portfolio overview for Week 21</p>
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h2>
+              <p className="text-slate-500 mt-1 flex items-center gap-2 text-sm">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Live Portfolio Overview • Week 21
+              </p>
           </div>
           <div className="flex gap-3">
               <button 
                 onClick={() => setIsSmartUpdateOpen(true)}
-                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 rounded-lg font-medium transition-all hover:shadow-lg border border-slate-600"
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all border border-slate-200 shadow-sm hover:shadow-md"
               >
-                  <Wand2 size={18} />
-                  Ingest Daily Update
+                  <Wand2 size={16} className="text-violet-600" />
+                  Smart Ingest
               </button>
               <button 
                 onClick={handleGenerateBriefing}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all hover:shadow-lg hover:scale-105 active:scale-95"
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-lg shadow-slate-900/20 hover:shadow-slate-900/30"
               >
-                  <Sparkles size={18} />
-                  Generate Monday Briefing
+                  <Sparkles size={16} />
+                  AI Briefing
               </button>
           </div>
       </div>
 
       {/* KPI Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* KPI Card 1: Portfolio Health */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Portfolio Health</h3>
-            <div className="flex items-center h-32">
-                <div className="w-1/2 h-full">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={chartData}
-                                innerRadius={35}
-                                outerRadius={50}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <RechartsTooltip />
-                        </PieChart>
-                    </ResponsiveContainer>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        
+        {/* KPI 1: Active Projects */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-4">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                    <Activity size={20} />
                 </div>
-                <div className="w-1/2 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2 text-slate-600"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>On Track</span>
-                        <span className="font-bold text-slate-900">{stats.onTrack}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2 text-slate-600"><div className="w-2 h-2 rounded-full bg-amber-500"></div>At Risk</span>
-                        <span className="font-bold text-slate-900">{stats.atRisk}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2 text-slate-600"><div className="w-2 h-2 rounded-full bg-red-500"></div>Delayed</span>
-                        <span className="font-bold text-slate-900">{stats.delayed}</span>
-                    </div>
-                </div>
+                <span className="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    <TrendingUp size={12} className="mr-1" /> +2
+                </span>
             </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.total}</div>
+            <div className="text-xs font-medium text-slate-500 mt-1 uppercase tracking-wide">Active Projects</div>
         </div>
 
-        {/* KPI Card 2: Critical Attention */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-5">
-                <AlertTriangle size={100} />
-             </div>
-             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Critical Attention</h3>
-             <div className="mt-4">
-                <span className="text-4xl font-bold text-slate-900">{stats.delayed + stats.atRisk}</span>
-                <span className="text-slate-500 ml-2">projects need review</span>
-             </div>
-             <p className="mt-4 text-sm text-slate-600">
-                {stats.delayed} projects are currently stalled due to external blockers or missed milestones.
-             </p>
+        {/* KPI 2: Critical Risks */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+            <div className="absolute right-0 top-0 h-full w-1 bg-red-500"></div>
+            <div className="flex justify-between items-start mb-4">
+                <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                    <AlertTriangle size={20} />
+                </div>
+                {stats.delayed > 0 && (
+                     <span className="flex items-center text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full animate-pulse">
+                        Action Required
+                    </span>
+                )}
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.delayed}</div>
+            <div className="text-xs font-medium text-slate-500 mt-1 uppercase tracking-wide">Critical / Delayed</div>
         </div>
 
-        {/* KPI Card 3: Budget Utilization */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Budget Utilization</h3>
-            <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-4xl font-bold text-slate-900">68%</span>
-                <span className="text-sm text-emerald-600 font-medium">+2% vs last week</span>
+        {/* KPI 3: At Risk */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-4">
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                    <AlertCircle size={20} />
+                </div>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-2 mt-4 overflow-hidden">
-                <div className="bg-blue-600 h-2 rounded-full" style={{ width: '68%' }}></div>
+            <div className="text-3xl font-bold text-slate-900">{stats.atRisk}</div>
+            <div className="text-xs font-medium text-slate-500 mt-1 uppercase tracking-wide">At Risk</div>
+        </div>
+
+        {/* KPI 4: Budget */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-4">
+                <div className="p-2 bg-slate-50 text-slate-600 rounded-lg">
+                    <TrendingDown size={20} />
+                </div>
+                <span className="text-xs font-medium text-slate-400">Total CapEx</span>
             </div>
-            <p className="mt-4 text-sm text-slate-600">Aggregate spend across active portfolio.</p>
+            <div className="text-3xl font-bold text-slate-900">68%</div>
+            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+                <div className="bg-slate-800 h-1.5 rounded-full" style={{ width: '68%' }}></div>
+            </div>
         </div>
       </div>
 
       {/* Main Board View */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Active Projects</h2>
-          <div className="flex gap-2">
-             <select className="text-sm border-slate-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                <option>All Owners</option>
-             </select>
-             <select className="text-sm border-slate-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                <option>All Statuses</option>
-             </select>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        {/* Toolbar */}
+        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+          <div className="flex items-center gap-2">
+             <div className="bg-white border border-slate-300 rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm text-sm text-slate-600 hover:border-blue-400 transition-colors cursor-pointer">
+                <Filter size={16} />
+                <span className="font-medium">Filter</span>
+             </div>
+             <div className="h-6 w-px bg-slate-300 mx-1"></div>
+             <button className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">All Owners</button>
+             <button className="px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Status</button>
+          </div>
+          <div className="flex items-center gap-2">
+             <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+                <Download size={18} />
+             </button>
           </div>
         </div>
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 text-slate-500">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Project</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Budget</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Latest Update</th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Project Name</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Owner</th>
+                <th scope="col" className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider">Health</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider w-48">Progress / Budget</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">Latest Update</th>
+                <th scope="col" className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider"></th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-slate-200">
+            <tbody className="bg-white divide-y divide-slate-100">
               {MOCK_PROJECTS.map((project) => (
-                <tr key={project.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => navigate(`/project/${project.id}`)}>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                <tr key={project.id} className="hover:bg-blue-50/30 transition-colors group cursor-pointer" onClick={() => navigate(`/project/${project.id}`)}>
+                  <td className="px-6 py-4">
                     <div className="flex flex-col">
-                        <span className="text-sm font-medium text-slate-900">{project.name}</span>
-                        <div className="flex gap-1 mt-1">
-                            {project.tags.map(tag => (
-                                <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">{tag}</span>
+                        <span className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{project.name}</span>
+                        <div className="flex gap-1.5 mt-1.5">
+                            {project.tags.slice(0, 2).map(tag => (
+                                <span key={tag} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 font-medium rounded-md border border-slate-200">{tag}</span>
                             ))}
                         </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                        <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-white shadow-sm">
                             {project.owner.name.charAt(0)}
                         </div>
-                        <span className="text-sm text-slate-600">{project.owner.name}</span>
+                        <span className="text-sm font-medium text-slate-600">{project.owner.name}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <StatusBadge status={project.status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-24">
-                        <div className="flex justify-between text-xs mb-1">
-                            <span className="text-slate-500">{project.budget_consumed_percent}%</span>
+                    <div className="w-full">
+                        <div className="flex justify-between text-xs mb-1.5 font-medium">
+                            <span className="text-slate-500">Budget</span>
+                            <span className="text-slate-900">{project.budget_consumed_percent}%</span>
                         </div>
-                        <div className="w-full bg-slate-100 rounded-full h-1.5">
+                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-100">
                             <div 
-                                className={`h-1.5 rounded-full ${project.budget_consumed_percent > 90 ? 'bg-red-500' : 'bg-blue-600'}`} 
+                                className={`h-full rounded-full transition-all duration-1000 ${project.budget_consumed_percent > 90 ? 'bg-red-500' : 'bg-blue-600'}`} 
                                 style={{ width: `${project.budget_consumed_percent}%` }}
                             ></div>
                         </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-sm text-slate-600 truncate max-w-xs">
-                        {project.updates[0]?.summary_text || "No updates yet."}
-                    </p>
-                    <span className="text-xs text-slate-400 mt-1 block">
-                        {project.updates[0]?.week_ending ? `Week ending ${project.updates[0].week_ending}` : ''}
-                    </span>
+                     <div className="relative pl-3 border-l-2 border-slate-200">
+                        <p className="text-sm text-slate-600 line-clamp-2">
+                            {project.updates[0]?.summary_text || "No updates yet."}
+                        </p>
+                        <span className="text-[10px] text-slate-400 mt-1 block font-mono">
+                            {project.updates[0]?.week_ending || 'No Date'}
+                        </span>
+                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button className="text-blue-600 hover:text-blue-900 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ArrowRight size={18} />
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <button className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all">
+                        <MoreHorizontal size={16} />
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+            <span>Showing {MOCK_PROJECTS.length} active projects</span>
+            <div className="flex gap-2">
+                <button className="px-3 py-1 border border-slate-300 bg-white rounded hover:bg-slate-50 disabled:opacity-50">Previous</button>
+                <button className="px-3 py-1 border border-slate-300 bg-white rounded hover:bg-slate-50">Next</button>
+            </div>
         </div>
       </div>
 

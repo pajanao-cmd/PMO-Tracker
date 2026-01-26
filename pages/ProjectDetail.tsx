@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, Clock, User, Link as LinkIcon, Sparkles } from 'lucide-react';
 import { MOCK_PROJECTS } from '../mockData';
 import { StatusBadge } from '../components/StatusBadge';
 import { MilestoneStatus, DailyLog, RiskAnalysis } from '../types';
@@ -25,7 +25,6 @@ export const ProjectDetail: React.FC = () => {
   const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysis | null>(null);
   const [analyzingRisk, setAnalyzingRisk] = useState(false);
 
-  // Mock History for Demo
   const mockHistory: DailyLog[] = [
       {
           update_date: '2024-05-22',
@@ -93,93 +92,122 @@ export const ProjectDetail: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto animate-in fade-in duration-500 relative">
-      {/* Navigation */}
-      <Link to="/" className="inline-flex items-center text-sm text-slate-500 hover:text-slate-900 transition-colors">
-        <ChevronLeft size={16} className="mr-1" />
-        Back to Dashboard
-      </Link>
+    <div className="space-y-8 animate-in fade-in duration-500 relative pb-20">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center text-sm text-slate-500">
+          <Link to="/" className="hover:text-slate-900 transition-colors">Dashboard</Link>
+          <ChevronLeft size={14} className="mx-2 rotate-180" />
+          <span className="font-semibold text-slate-900 truncate">{project.name}</span>
+      </nav>
 
-      {/* Header */}
-      <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex justify-between items-start">
-            <div>
-                <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{project.name}</h1>
-                    <StatusBadge status={project.status} />
+      {/* Project Charter Header */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+         <div className="p-8 pb-6 border-b border-slate-100">
+            <div className="flex flex-col md:flex-row justify-between items-start gap-6">
+                <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{project.name}</h1>
+                         <StatusBadge status={project.status} />
+                    </div>
+                    <p className="text-slate-500 max-w-3xl text-lg leading-relaxed">{project.description}</p>
+                    <div className="flex gap-2">
+                        {project.tags.map(tag => (
+                            <span key={tag} className="text-xs font-medium px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200">{tag}</span>
+                        ))}
+                    </div>
                 </div>
-                <p className="text-slate-500 max-w-2xl text-lg">{project.description}</p>
-                <div className="flex items-center gap-6 mt-6">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <div className="p-1.5 bg-slate-100 rounded-md"><Calendar size={16} /></div>
-                        {project.start_date} → {project.end_date}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <div className="p-1.5 bg-slate-100 rounded-md"><UserAvatar name={project.owner.name} /></div>
-                        Owned by <span className="font-medium text-slate-900">{project.owner.name}</span>
-                    </div>
+
+                <div className="flex flex-col gap-3 min-w-[200px]">
+                    <button 
+                        onClick={handleAiAnalysis}
+                        disabled={loadingAi}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all disabled:opacity-70 shadow-md text-sm font-medium"
+                    >
+                        {loadingAi ? <Loader2 className="animate-spin" size={16} /> : <Bot size={16} />}
+                        AI Risk Assessment
+                    </button>
+                    <button 
+                        onClick={() => setIsLogModalOpen(true)}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium"
+                    >
+                        <FileText size={16} />
+                        Add Daily Entry
+                    </button>
                 </div>
             </div>
-            
-            <div className="flex flex-col gap-2">
-                <button 
-                    onClick={handleAiAnalysis}
-                    disabled={loadingAi}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-70 disabled:cursor-not-allowed text-sm font-medium w-full justify-center"
-                >
-                    {loadingAi ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                        <Bot size={18} />
-                    )}
-                    Generate AI Risk Analysis
-                </button>
-                <button 
-                    onClick={() => setIsLogModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium w-full justify-center"
-                >
-                    <FileText size={18} />
-                    Draft Daily Log
-                </button>
+         </div>
+         <div className="bg-slate-50/50 p-4 md:px-8 grid grid-cols-2 md:grid-cols-4 gap-6 divide-x divide-slate-200">
+            <div className="px-4 first:pl-0">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Timeline</div>
+                <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <Calendar size={16} className="text-slate-400" />
+                    {project.start_date} — {project.end_date}
+                </div>
+            </div>
+            <div className="px-4">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Owner</div>
+                <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <User size={16} className="text-slate-400" />
+                    {project.owner.name}
+                </div>
+            </div>
+            <div className="px-4">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Budget</div>
+                <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <DollarSign size={16} className="text-slate-400" />
+                    {project.budget_consumed_percent}% Consumed
+                </div>
+            </div>
+            <div className="px-4">
+                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Links</div>
+                 <div className="flex gap-3">
+                     <LinkIcon size={16} className="text-blue-500 cursor-pointer hover:text-blue-700" />
+                     <Activity size={16} className="text-blue-500 cursor-pointer hover:text-blue-700" />
+                 </div>
+            </div>
+         </div>
+      </div>
+
+      {/* AI Insight Box (Conditional) */}
+      {aiAnalysis && (
+        <div className="bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-100 rounded-xl p-6 flex items-start gap-4 animate-in slide-in-from-top-2 shadow-sm">
+            <div className="p-2 bg-white rounded-lg shadow-sm text-violet-600">
+                <Sparkles size={24} />
+            </div>
+            <div>
+                <h4 className="font-bold text-violet-900 text-sm uppercase tracking-wide mb-1">Executive Insight</h4>
+                <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">{aiAnalysis}</p>
             </div>
         </div>
-
-        {/* AI Insight Box */}
-        {aiAnalysis && (
-            <div className="mt-6 p-4 bg-violet-50 border border-violet-100 rounded-lg flex items-start gap-3 animate-in slide-in-from-top-2">
-                <Bot className="text-violet-600 mt-1 flex-shrink-0" size={20} />
-                <div>
-                    <h4 className="font-bold text-violet-900 text-sm">Gemini Executive Insight</h4>
-                    <p className="text-violet-800 text-sm mt-1 whitespace-pre-line">{aiAnalysis}</p>
-                </div>
-            </div>
-        )}
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Left Column: Updates */}
+        {/* Left Column: Updates & Risk */}
         <div className="lg:col-span-2 space-y-8">
              
              {/* Risk Pattern Detector Widget */}
-             <div className="bg-slate-900 rounded-xl shadow-lg overflow-hidden border border-slate-700 text-white">
-                 <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+             <div className="bg-slate-900 rounded-xl shadow-xl overflow-hidden text-white relative group">
+                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                     <Activity size={120} />
+                 </div>
+                 <div className="p-6 border-b border-slate-800 flex justify-between items-center relative z-10">
                     <div>
                         <h2 className="font-bold text-white flex items-center gap-2 text-lg">
-                            <Zap size={20} className="text-amber-400" />
-                            Risk Pattern Detector
+                            <Zap size={20} className="text-yellow-400" />
+                            Live Risk Monitor
                         </h2>
-                        <p className="text-slate-400 text-sm mt-1">Analyzing daily signals for escalation patterns.</p>
+                        <p className="text-slate-400 text-xs mt-1 font-mono">Scanning daily logs for escalation patterns...</p>
                     </div>
                     <button 
                         onClick={handleAnalyzeRiskPattern}
                         disabled={analyzingRisk}
-                        className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded shadow-lg transition-all"
                     >
-                        {analyzingRisk ? <Loader2 className="animate-spin" /> : 'Run Analysis'}
+                        {analyzingRisk ? <Loader2 className="animate-spin" /> : 'SCAN NOW'}
                     </button>
                  </div>
-                 <div className="p-6">
+                 <div className="p-6 relative z-10">
                     {riskAnalysis ? (
                         <div className="animate-in fade-in slide-in-from-top-2">
                             <div className={`p-4 rounded-lg border flex items-start gap-4 ${
@@ -188,17 +216,17 @@ export const ProjectDetail: React.FC = () => {
                                 : 'bg-emerald-500/10 border-emerald-500/30'
                             }`}>
                                 {riskAnalysis.escalation_required ? (
-                                    <AlertCircle className="text-red-500 mt-1" size={24} />
+                                    <div className="p-2 bg-red-500/20 rounded-full"><AlertCircle className="text-red-500" size={24} /></div>
                                 ) : (
-                                    <Check className="text-emerald-500 mt-1" size={24} />
+                                    <div className="p-2 bg-emerald-500/20 rounded-full"><Check className="text-emerald-500" size={24} /></div>
                                 )}
                                 <div>
-                                    <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex items-center gap-3 mb-1">
                                         <h3 className={`font-bold text-lg ${riskAnalysis.escalation_required ? 'text-red-400' : 'text-emerald-400'}`}>
                                             {riskAnalysis.risk_trend.toUpperCase()} TREND
                                         </h3>
                                         {riskAnalysis.escalation_required && (
-                                            <span className="bg-red-500 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded">Escalation Required</span>
+                                            <span className="bg-red-600 text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded shadow-sm">Escalation Required</span>
                                         )}
                                     </div>
                                     <p className="text-slate-300 text-sm leading-relaxed">{riskAnalysis.reason}</p>
@@ -207,15 +235,17 @@ export const ProjectDetail: React.FC = () => {
                         </div>
                     ) : (
                         <div className="bg-slate-800/50 rounded-lg p-4">
-                            <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">Simulated Recent History (Last 3 Days)</h4>
-                            <div className="space-y-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recent Signals (Simulation)</h4>
+                            </div>
+                            <div className="space-y-3">
                                 {mockHistory.map((h, i) => (
-                                    <div key={i} className="flex items-center gap-3 text-sm text-slate-400 border-b border-slate-800/50 pb-2 last:border-0 last:pb-0">
-                                        <span className="font-mono text-slate-500">{h.update_date}</span>
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
-                                            h.status_today === 'at_risk' ? 'bg-amber-900/50 text-amber-400' : 'bg-slate-700 text-slate-300'
-                                        }`}>{h.status_today.replace('_', ' ')}</span>
-                                        <span className="truncate">{h.blocker_today}</span>
+                                    <div key={i} className="flex items-center gap-4 text-sm text-slate-400 pb-3 border-b border-white/5 last:border-0 last:pb-0">
+                                        <div className="font-mono text-slate-500 text-xs">{h.update_date}</div>
+                                        <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
+                                            h.status_today === 'at_risk' ? 'bg-amber-900/40 text-amber-400 border border-amber-900/50' : 'bg-slate-700 text-slate-300'
+                                        }`}>{h.status_today.replace('_', ' ')}</div>
+                                        <div className="truncate flex-1 text-slate-300">{h.blocker_today || h.progress_note}</div>
                                     </div>
                                 ))}
                             </div>
@@ -224,85 +254,94 @@ export const ProjectDetail: React.FC = () => {
                  </div>
              </div>
 
+             {/* Updates Timeline */}
              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-200 bg-slate-50">
+                <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
                     <h2 className="font-bold text-slate-900 flex items-center gap-2">
-                        <Activity size={20} className="text-blue-600" />
-                        Weekly Updates
+                        <FileText size={20} className="text-slate-400" />
+                        Executive Updates
                     </h2>
+                    <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded">Last 30 Days</span>
                 </div>
                 <div className="divide-y divide-slate-100">
                     {project.updates.map((update, idx) => (
-                        <div key={update.id} className="p-6 hover:bg-slate-50 transition-colors">
-                            <div className="flex justify-between items-start mb-3">
-                                <span className="text-sm font-semibold text-slate-900">Week ending {update.week_ending}</span>
+                        <div key={update.id} className="p-6 hover:bg-slate-50 transition-colors group">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs border border-slate-200">
+                                        {update.author_id === 'u1' ? 'SC' : 'MR'}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-900">Week Ending {update.week_ending}</p>
+                                        <p className="text-xs text-slate-500">Author: {update.author_id === 'u1' ? 'Sarah Chen' : 'Mike Ross'}</p>
+                                    </div>
+                                </div>
                                 <StatusBadge status={update.rag_status} size="sm" />
                             </div>
-                            <div className="prose prose-sm max-w-none text-slate-600 space-y-3">
-                                <p><span className="font-medium text-slate-900">Summary: </span>{update.summary_text}</p>
+                            
+                            <div className="pl-12 space-y-3">
+                                <p className="text-sm text-slate-700 leading-relaxed">{update.summary_text}</p>
+                                
                                 {update.risks_blockers && update.risks_blockers !== 'None.' && (
-                                    <div className="flex items-start gap-2 bg-red-50 p-3 rounded-lg border border-red-100 text-red-800">
+                                    <div className="flex items-start gap-3 bg-red-50 p-3 rounded-lg border border-red-100 text-red-800 text-sm mt-2">
                                         <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-                                        <span><span className="font-bold">Risks/Blockers: </span>{update.risks_blockers}</span>
+                                        <div>
+                                            <span className="font-bold block text-xs uppercase mb-1">Blockers / Risks</span>
+                                            {update.risks_blockers}
+                                        </div>
                                     </div>
                                 )}
-                                <p><span className="font-medium text-slate-900">Next Steps: </span>{update.next_steps}</p>
+                                
+                                <div className="flex items-center gap-2 text-xs text-slate-500 pt-2">
+                                    <span className="font-bold text-slate-600">Next Steps:</span>
+                                    {update.next_steps}
+                                </div>
                             </div>
                         </div>
                     ))}
-                    {project.updates.length === 0 && <div className="p-6 text-slate-500 italic">No updates recorded yet.</div>}
+                    {project.updates.length === 0 && <div className="p-8 text-center text-slate-400 italic">No weekly updates recorded yet.</div>}
                 </div>
              </div>
         </div>
 
         {/* Right Column: Milestones & KPIs */}
-        <div className="space-y-8">
-             {/* Key Metrics */}
-             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 text-slate-500 mb-2 text-xs font-semibold uppercase">
-                        <DollarSign size={14} /> Budget
-                    </div>
-                    <div className="text-2xl font-bold text-slate-900">{project.budget_consumed_percent}%</div>
-                    <div className="w-full bg-slate-100 h-1.5 mt-2 rounded-full">
-                        <div className="bg-blue-600 h-1.5 rounded-full" style={{width: `${project.budget_consumed_percent}%`}}></div>
-                    </div>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 text-slate-500 mb-2 text-xs font-semibold uppercase">
-                        <Flag size={14} /> Scope
-                    </div>
-                    <div className="text-2xl font-bold text-slate-900">Stable</div>
-                    <div className="text-xs text-emerald-600 font-medium">No creep detected</div>
-                </div>
-             </div>
-
-             {/* Milestones Widget */}
+        <div className="space-y-6">
+             {/* Milestones Widget - Vertical Timeline */}
              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-200 bg-slate-50">
-                    <h3 className="font-bold text-slate-900 text-sm">Milestones</h3>
+                <div className="p-5 border-b border-slate-200 bg-slate-50/50">
+                    <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <Flag size={16} className="text-slate-500" /> 
+                        Key Milestones
+                    </h3>
                 </div>
-                <div className="p-4 space-y-4">
-                    {project.milestones.map(m => (
-                        <div key={m.id} className="flex items-center gap-3">
-                            <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                                m.status === MilestoneStatus.COMPLETED ? 'bg-emerald-500' :
-                                m.status === MilestoneStatus.MISSED ? 'bg-red-500' : 'bg-slate-300'
-                            }`}></div>
-                            <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium truncate ${m.status === MilestoneStatus.COMPLETED ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                                    {m.name}
-                                </p>
-                                <p className="text-xs text-slate-500">{m.due_date}</p>
+                <div className="p-6 relative">
+                    {/* Vertical Line */}
+                    <div className="absolute left-9 top-8 bottom-8 w-0.5 bg-slate-200"></div>
+
+                    <div className="space-y-8">
+                        {project.milestones.map((m, idx) => (
+                            <div key={m.id} className="relative flex gap-4">
+                                <div className={`w-3 h-3 mt-1.5 rounded-full flex-shrink-0 z-10 ring-4 ring-white ${
+                                    m.status === MilestoneStatus.COMPLETED ? 'bg-emerald-500' :
+                                    m.status === MilestoneStatus.MISSED ? 'bg-red-500' : 'bg-slate-300'
+                                }`}></div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start">
+                                        <p className={`text-sm font-semibold truncate ${m.status === MilestoneStatus.COMPLETED ? 'text-slate-500' : 'text-slate-900'}`}>
+                                            {m.name}
+                                        </p>
+                                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ml-2 ${
+                                            m.status === MilestoneStatus.COMPLETED ? 'text-emerald-600 bg-emerald-50' :
+                                            m.status === MilestoneStatus.MISSED ? 'text-red-600 bg-red-50' : 'text-slate-500 bg-slate-100'
+                                        }`}>
+                                            {m.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-0.5 font-mono">{m.due_date}</p>
+                                </div>
                             </div>
-                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                                m.status === MilestoneStatus.COMPLETED ? 'bg-emerald-100 text-emerald-700' :
-                                m.status === MilestoneStatus.MISSED ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
-                            }`}>
-                                {m.status}
-                            </span>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
              </div>
         </div>
@@ -310,9 +349,9 @@ export const ProjectDetail: React.FC = () => {
 
       {/* Daily Log Modal */}
       {isLogModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/80">
                       <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                           <Bot className="text-blue-600" size={24} />
                           AI Daily Log Assistant
@@ -322,43 +361,41 @@ export const ProjectDetail: React.FC = () => {
                       </button>
                   </div>
                   
-                  <div className="p-6 space-y-6">
+                  <div className="p-8 space-y-6">
                       {!generatedLog ? (
-                          <form onSubmit={handleGenerateLog} className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
+                          <form onSubmit={handleGenerateLog} className="space-y-5">
+                              <div className="grid grid-cols-2 gap-6">
                                   <div>
-                                      <label className="block text-sm font-medium text-slate-700 mb-1">Status Today</label>
+                                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Status Today</label>
                                       <input 
                                           type="text" 
                                           required
-                                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 text-sm"
                                           placeholder="e.g., Progressing slow"
                                           value={logStatus}
                                           onChange={e => setLogStatus(e.target.value)}
                                       />
                                   </div>
                                   <div>
-                                      <label className="block text-sm font-medium text-slate-700 mb-1">Help Needed?</label>
-                                      <div className="flex items-center h-10">
-                                          <label className="flex items-center cursor-pointer">
-                                              <input 
-                                                  type="checkbox" 
-                                                  className="rounded border-slate-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 h-5 w-5"
-                                                  checked={logHelpNeeded}
-                                                  onChange={e => setLogHelpNeeded(e.target.checked)}
-                                              />
-                                              <span className="ml-2 text-sm text-slate-600">Yes, require escalation</span>
-                                          </label>
-                                      </div>
+                                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Escalation</label>
+                                      <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${logHelpNeeded ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                          <input 
+                                              type="checkbox" 
+                                              className="rounded border-slate-300 text-red-600 shadow-sm focus:ring-red-500 h-4 w-4"
+                                              checked={logHelpNeeded}
+                                              onChange={e => setLogHelpNeeded(e.target.checked)}
+                                          />
+                                          <span className={`ml-2 text-sm font-medium ${logHelpNeeded ? 'text-red-700' : 'text-slate-600'}`}>Require Executive Help</span>
+                                      </label>
                                   </div>
                               </div>
                               
                               <div>
-                                  <label className="block text-sm font-medium text-slate-700 mb-1">Progress Notes</label>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Progress Notes</label>
                                   <textarea 
                                       required
                                       rows={4}
-                                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm"
                                       placeholder="What was achieved today?"
                                       value={logProgress}
                                       onChange={e => setLogProgress(e.target.value)}
@@ -366,21 +403,21 @@ export const ProjectDetail: React.FC = () => {
                               </div>
 
                               <div>
-                                  <label className="block text-sm font-medium text-slate-700 mb-1">Blockers (if any)</label>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Blockers (if any)</label>
                                   <textarea 
                                       rows={2}
-                                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm"
                                       placeholder="What is standing in the way?"
                                       value={logBlockers}
                                       onChange={e => setLogBlockers(e.target.value)}
                                   ></textarea>
                               </div>
 
-                              <div className="pt-2">
+                              <div className="pt-4">
                                   <button 
                                       type="submit" 
                                       disabled={generatingLog}
-                                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                                   >
                                       {generatingLog ? (
                                           <Loader2 className="animate-spin" size={20} />
@@ -392,30 +429,32 @@ export const ProjectDetail: React.FC = () => {
                               </div>
                           </form>
                       ) : (
-                          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-                              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 font-mono text-sm overflow-x-auto">
-                                  <pre className="text-slate-800">{JSON.stringify(generatedLog, null, 2)}</pre>
+                          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                              <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 shadow-inner font-mono text-sm overflow-x-auto">
+                                  <pre className="text-emerald-400">{JSON.stringify(generatedLog, null, 2)}</pre>
                               </div>
-                              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                                  <h4 className="text-blue-900 font-bold text-sm mb-2">Review & Confirm</h4>
-                                  <p className="text-blue-800 text-sm">
-                                      The AI has structured your input into a standard daily log format. 
-                                      In a real app, clicking "Save Log" would store this JSON in the database.
-                                  </p>
+                              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex gap-3">
+                                  <div className="p-2 bg-blue-100 rounded text-blue-600 h-fit"><Check size={16} /></div>
+                                  <div>
+                                    <h4 className="text-blue-900 font-bold text-sm mb-1">Log Structured Successfully</h4>
+                                    <p className="text-blue-800 text-xs leading-relaxed">
+                                        The AI has normalized your input. Review the JSON structure above before saving to the database.
+                                    </p>
+                                  </div>
                               </div>
-                              <div className="flex gap-3 pt-2">
+                              <div className="flex gap-4 pt-2">
                                   <button 
                                       onClick={() => setGeneratedLog(null)}
-                                      className="flex-1 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg font-medium transition-colors"
+                                      className="flex-1 py-2.5 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg font-medium transition-colors"
                                   >
-                                      Edit Input
+                                      Discard & Edit
                                   </button>
                                   <button 
                                       onClick={closeLogModal}
-                                      className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
                                   >
                                       <Check size={18} />
-                                      Save Log
+                                      Confirm & Save
                                   </button>
                               </div>
                           </div>
@@ -427,10 +466,3 @@ export const ProjectDetail: React.FC = () => {
     </div>
   );
 };
-
-// Helper for generic avatar
-const UserAvatar: React.FC<{name: string}> = ({name}) => (
-    <div className="w-4 h-4 rounded-full bg-slate-300 text-[8px] flex items-center justify-center font-bold text-white">
-        {name.charAt(0)}
-    </div>
-);
