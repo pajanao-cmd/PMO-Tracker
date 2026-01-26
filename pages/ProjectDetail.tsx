@@ -1,18 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, Clock, User, Link as LinkIcon, Sparkles } from 'lucide-react';
-import { MOCK_PROJECTS } from '../mockData';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
-import { MilestoneStatus, DailyLog, RiskAnalysis } from '../types';
+import { MilestoneStatus, DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate } from '../types';
 import { generateExecutiveRiskAnalysis, generateDailyLog, analyzeRiskPattern } from '../services/geminiService';
+import { supabase } from '../services/supabaseClient';
 
 export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const project = MOCK_PROJECTS.find(p => p.id === id);
+  
+  // Data State
+  const [project, setProject] = useState<any>(null);
+  const [dailyUpdates, setDailyUpdates] = useState<DailyLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // AI & Modal State
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
-
-  // Daily Log Modal State
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [logStatus, setLogStatus] = useState('');
   const [logProgress, setLogProgress] = useState('');
@@ -20,52 +25,91 @@ export const ProjectDetail: React.FC = () => {
   const [logHelpNeeded, setLogHelpNeeded] = useState(false);
   const [generatedLog, setGeneratedLog] = useState<DailyLog | null>(null);
   const [generatingLog, setGeneratingLog] = useState(false);
-
-  // Risk Pattern State
   const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysis | null>(null);
   const [analyzingRisk, setAnalyzingRisk] = useState(false);
 
-  const mockHistory: DailyLog[] = [
-      {
-          update_date: '2024-05-22',
-          status_today: 'at_risk',
-          progress_note: 'Backend latency observed.',
-          blocker_today: 'API Latency',
-          help_needed: false,
-          risk_signal: 'emerging'
-      },
-      {
-          update_date: '2024-05-23',
-          status_today: 'at_risk',
-          progress_note: 'Trying caching strategies. No improvement.',
-          blocker_today: 'API Latency',
-          help_needed: false,
-          risk_signal: 'emerging'
-      },
-      {
-          update_date: '2024-05-24',
-          status_today: 'at_risk',
-          progress_note: 'Still stuck. Need vendor support.',
-          blocker_today: 'API Latency - Critical',
-          help_needed: true,
-          risk_signal: 'critical'
-      }
-  ];
+  // Fetch Data from Supabase
+  const fetchData = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+          // 1. Fetch Project Details
+          const { data: projectData, error: projectError } = await supabase
+              .from('projects')
+              .select('*')
+              .eq('id', id)
+              .single();
+          
+          if (projectError) throw projectError;
+          setProject(projectData);
 
-  if (!project) return <div className="text-center p-10">Project not found</div>;
+          // 2. Fetch Daily Updates (Limit 30)
+          const { data: updatesData, error: updatesError } = await supabase
+              .from('project_daily_updates')
+              .select('*')
+              .eq('project_id', id)
+              .order('update_date', { ascending: false })
+              .limit(30);
+
+          if (updatesError) throw updatesError;
+          setDailyUpdates(updatesData || []);
+
+      } catch (err: any) {
+          console.error('Error loading project:', err);
+          setError('Failed to load project data.');
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  useEffect(() => {
+      fetchData();
+  }, [id]);
+
+  // Construct a ProjectDetail object compliant with the AI service
+  const getProjectContextForAi = (): IProjectDetail => {
+    if (!project) return {} as IProjectDetail;
+    
+    // Map daily updates to WeeklyUpdate format roughly for AI consumption
+    const mockUpdates: WeeklyUpdate[] = dailyUpdates.slice(0, 5).map(u => ({
+        id: u.update_date,
+        week_ending: u.update_date,
+        author_id: 'system',
+        rag_status: u.status_today as ProjectStatus,
+        summary_text: u.progress_note,
+        risks_blockers: u.blocker_today || 'None',
+        next_steps: ''
+    }));
+
+    return {
+        id: project.id,
+        name: project.project_name,
+        status: dailyUpdates[0]?.status_today as ProjectStatus || ProjectStatus.ON_TRACK,
+        description: project.description || 'No description provided.',
+        budget_consumed_percent: project.budget_consumed_percent || 0,
+        tags: project.tags || [],
+        start_date: project.start_date,
+        end_date: project.end_date,
+        owner: { id: '0', name: project.owner, role: 'PM' },
+        updates: mockUpdates,
+        milestones: []
+    };
+  };
 
   const handleAiAnalysis = async () => {
+    if (!project) return;
     setLoadingAi(true);
-    const analysis = await generateExecutiveRiskAnalysis(project);
+    const analysis = await generateExecutiveRiskAnalysis(getProjectContextForAi());
     setAiAnalysis(analysis);
     setLoadingAi(false);
   };
 
   const handleGenerateLog = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (!project) return;
       setGeneratingLog(true);
       const result = await generateDailyLog(
-          project.name,
+          project.project_name,
           logStatus,
           logProgress,
           logBlockers,
@@ -74,10 +118,32 @@ export const ProjectDetail: React.FC = () => {
       setGeneratedLog(result);
       setGeneratingLog(false);
   };
+  
+  const saveGeneratedLog = async () => {
+      if (!generatedLog || !id) return;
+      try {
+          const { error } = await supabase.from('project_daily_updates').insert([{
+              project_id: id,
+              update_date: generatedLog.update_date,
+              status_today: generatedLog.status_today,
+              progress_note: generatedLog.progress_note,
+              blocker_today: generatedLog.blocker_today === 'None' ? null : generatedLog.blocker_today,
+          }]);
+          
+          if (error) throw error;
+          
+          // Refresh data
+          fetchData();
+          closeLogModal();
+      } catch (err: any) {
+          alert('Failed to save log: ' + err.message);
+      }
+  };
 
   const handleAnalyzeRiskPattern = async () => {
+      if (!project) return;
       setAnalyzingRisk(true);
-      const result = await analyzeRiskPattern(project.name, mockHistory);
+      const result = await analyzeRiskPattern(project.project_name, dailyUpdates.slice(0, 3));
       setRiskAnalysis(result);
       setAnalyzingRisk(false);
   };
@@ -91,13 +157,18 @@ export const ProjectDetail: React.FC = () => {
       setLogHelpNeeded(false);
   }
 
+  if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
+  if (error || !project) return <div className="text-center p-10 text-red-500">{error || 'Project not found'}</div>;
+
+  const currentStatus = dailyUpdates[0]?.status_today as ProjectStatus || ProjectStatus.ON_TRACK;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 relative pb-20">
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center text-sm text-slate-500">
           <Link to="/" className="hover:text-slate-900 transition-colors">Dashboard</Link>
           <ChevronLeft size={14} className="mx-2 rotate-180" />
-          <span className="font-semibold text-slate-900 truncate">{project.name}</span>
+          <span className="font-semibold text-slate-900 truncate">{project.project_name}</span>
       </nav>
 
       {/* Project Charter Header */}
@@ -106,12 +177,15 @@ export const ProjectDetail: React.FC = () => {
             <div className="flex flex-col md:flex-row justify-between items-start gap-6">
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{project.name}</h1>
-                         <StatusBadge status={project.status} />
+                         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{project.project_name}</h1>
+                         <StatusBadge status={currentStatus} />
                     </div>
-                    <p className="text-slate-500 max-w-3xl text-lg leading-relaxed">{project.description}</p>
+                    <p className="text-slate-500 max-w-3xl text-lg leading-relaxed">
+                        {project.description || 'No description available for this project.'}
+                    </p>
                     <div className="flex gap-2">
-                        {project.tags.map(tag => (
+                        <span className="text-xs font-medium px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200">Type: {project.type}</span>
+                        {project.tags && project.tags.map((tag: string) => (
                             <span key={tag} className="text-xs font-medium px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200">{tag}</span>
                         ))}
                     </div>
@@ -148,14 +222,14 @@ export const ProjectDetail: React.FC = () => {
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Owner</div>
                 <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                     <User size={16} className="text-slate-400" />
-                    {project.owner.name}
+                    {project.owner}
                 </div>
             </div>
             <div className="px-4">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Budget</div>
                 <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                     <DollarSign size={16} className="text-slate-400" />
-                    {project.budget_consumed_percent}% Consumed
+                    {project.budget_consumed_percent || 0}% Consumed
                 </div>
             </div>
             <div className="px-4">
@@ -236,18 +310,19 @@ export const ProjectDetail: React.FC = () => {
                     ) : (
                         <div className="bg-slate-800/50 rounded-lg p-4">
                             <div className="flex items-center justify-between mb-4">
-                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recent Signals (Simulation)</h4>
+                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recent Activity</h4>
                             </div>
                             <div className="space-y-3">
-                                {mockHistory.map((h, i) => (
+                                {dailyUpdates.slice(0, 3).map((h, i) => (
                                     <div key={i} className="flex items-center gap-4 text-sm text-slate-400 pb-3 border-b border-white/5 last:border-0 last:pb-0">
                                         <div className="font-mono text-slate-500 text-xs">{h.update_date}</div>
                                         <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
-                                            h.status_today === 'at_risk' ? 'bg-amber-900/40 text-amber-400 border border-amber-900/50' : 'bg-slate-700 text-slate-300'
-                                        }`}>{h.status_today.replace('_', ' ')}</div>
-                                        <div className="truncate flex-1 text-slate-300">{h.blocker_today || h.progress_note}</div>
+                                            h.status_today === 'At Risk' || h.status_today === 'Delayed' ? 'bg-amber-900/40 text-amber-400 border border-amber-900/50' : 'bg-slate-700 text-slate-300'
+                                        }`}>{h.status_today}</div>
+                                        <div className="truncate flex-1 text-slate-300">{h.blocker_today ? `Blocker: ${h.blocker_today}` : h.progress_note}</div>
                                     </div>
                                 ))}
+                                {dailyUpdates.length === 0 && <span className="text-slate-500 text-xs italic">No updates recorded.</span>}
                             </div>
                         </div>
                     )}
@@ -259,47 +334,42 @@ export const ProjectDetail: React.FC = () => {
                 <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
                     <h2 className="font-bold text-slate-900 flex items-center gap-2">
                         <FileText size={20} className="text-slate-400" />
-                        Executive Updates
+                        Daily Updates
                     </h2>
-                    <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded">Last 30 Days</span>
+                    <span className="text-xs font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded">Recent History</span>
                 </div>
                 <div className="divide-y divide-slate-100">
-                    {project.updates.map((update, idx) => (
-                        <div key={update.id} className="p-6 hover:bg-slate-50 transition-colors group">
+                    {dailyUpdates.map((update, idx) => (
+                        <div key={idx} className="p-6 hover:bg-slate-50 transition-colors group">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs border border-slate-200">
-                                        {update.author_id === 'u1' ? 'SC' : 'MR'}
+                                        DL
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-900">Week Ending {update.week_ending}</p>
-                                        <p className="text-xs text-slate-500">Author: {update.author_id === 'u1' ? 'Sarah Chen' : 'Mike Ross'}</p>
+                                        <p className="text-sm font-bold text-slate-900">Update {update.update_date}</p>
+                                        <p className="text-xs text-slate-500">Daily Log</p>
                                     </div>
                                 </div>
-                                <StatusBadge status={update.rag_status} size="sm" />
+                                <StatusBadge status={update.status_today as ProjectStatus} size="sm" />
                             </div>
                             
                             <div className="pl-12 space-y-3">
-                                <p className="text-sm text-slate-700 leading-relaxed">{update.summary_text}</p>
+                                <p className="text-sm text-slate-700 leading-relaxed">{update.progress_note}</p>
                                 
-                                {update.risks_blockers && update.risks_blockers !== 'None.' && (
+                                {update.blocker_today && update.blocker_today !== 'None' && (
                                     <div className="flex items-start gap-3 bg-red-50 p-3 rounded-lg border border-red-100 text-red-800 text-sm mt-2">
                                         <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
                                         <div>
                                             <span className="font-bold block text-xs uppercase mb-1">Blockers / Risks</span>
-                                            {update.risks_blockers}
+                                            {update.blocker_today}
                                         </div>
                                     </div>
                                 )}
-                                
-                                <div className="flex items-center gap-2 text-xs text-slate-500 pt-2">
-                                    <span className="font-bold text-slate-600">Next Steps:</span>
-                                    {update.next_steps}
-                                </div>
                             </div>
                         </div>
                     ))}
-                    {project.updates.length === 0 && <div className="p-8 text-center text-slate-400 italic">No weekly updates recorded yet.</div>}
+                    {dailyUpdates.length === 0 && <div className="p-8 text-center text-slate-400 italic">No updates recorded yet.</div>}
                 </div>
              </div>
         </div>
@@ -315,32 +385,8 @@ export const ProjectDetail: React.FC = () => {
                     </h3>
                 </div>
                 <div className="p-6 relative">
-                    {/* Vertical Line */}
-                    <div className="absolute left-9 top-8 bottom-8 w-0.5 bg-slate-200"></div>
-
-                    <div className="space-y-8">
-                        {project.milestones.map((m, idx) => (
-                            <div key={m.id} className="relative flex gap-4">
-                                <div className={`w-3 h-3 mt-1.5 rounded-full flex-shrink-0 z-10 ring-4 ring-white ${
-                                    m.status === MilestoneStatus.COMPLETED ? 'bg-emerald-500' :
-                                    m.status === MilestoneStatus.MISSED ? 'bg-red-500' : 'bg-slate-300'
-                                }`}></div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-start">
-                                        <p className={`text-sm font-semibold truncate ${m.status === MilestoneStatus.COMPLETED ? 'text-slate-500' : 'text-slate-900'}`}>
-                                            {m.name}
-                                        </p>
-                                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ml-2 ${
-                                            m.status === MilestoneStatus.COMPLETED ? 'text-emerald-600 bg-emerald-50' :
-                                            m.status === MilestoneStatus.MISSED ? 'text-red-600 bg-red-50' : 'text-slate-500 bg-slate-100'
-                                        }`}>
-                                            {m.status}
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-400 mt-0.5 font-mono">{m.due_date}</p>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="text-center text-slate-400 text-sm italic">
+                        Milestone tracking not yet configured for this project.
                     </div>
                 </div>
              </div>
@@ -450,7 +496,7 @@ export const ProjectDetail: React.FC = () => {
                                       Discard & Edit
                                   </button>
                                   <button 
-                                      onClick={closeLogModal}
+                                      onClick={saveGeneratedLog}
                                       className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
                                   >
                                       <Check size={18} />

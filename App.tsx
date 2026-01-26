@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { DailyLog } from './pages/DailyLog';
 import { CreateProject } from './pages/CreateProject';
 import { EditProject } from './pages/EditProject';
+import { ProjectDetail } from './pages/ProjectDetail';
 
 const App: React.FC = () => {
   return (
@@ -19,6 +20,7 @@ const App: React.FC = () => {
           
           {/* Project Management */}
           <Route path="/projects/new" element={<CreateProject />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/projects/:id/edit" element={<EditProject />} />
           
           {/* Daily Log */}

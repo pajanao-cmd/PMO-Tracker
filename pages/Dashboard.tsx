@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Activity, TrendingUp, AlertTriangle, CheckCircle, Loader2, RefreshCw, Trash2, Edit } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Activity, TrendingUp, AlertTriangle, CheckCircle, Loader2, RefreshCw, Trash2, Edit, Eye } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { DashboardProject } from '../types';
 
@@ -166,8 +166,10 @@ export const Dashboard: React.FC = () => {
                              return (
                                 <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-bold text-slate-900">{p.project_name}</div>
-                                        {!p.active && <span className="text-[10px] bg-slate-200 px-1 rounded text-slate-600 font-semibold border border-slate-300">Inactive</span>}
+                                        <Link to={`/projects/${p.id}`} className="text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                                            {p.project_name}
+                                        </Link>
+                                        {!p.active && <span className="ml-2 text-[10px] bg-slate-200 px-1 rounded text-slate-600 font-semibold border border-slate-300">Inactive</span>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{p.owner}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -185,6 +187,13 @@ export const Dashboard: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                             <button 
+                                                onClick={() => navigate(`/projects/${p.id}`)}
+                                                className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors"
+                                                title="View Details"
+                                            >
+                                                <Eye size={16} />
+                                            </button>
                                             <button 
                                                 onClick={() => navigate(`/projects/${p.id}/edit`)}
                                                 className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors"
