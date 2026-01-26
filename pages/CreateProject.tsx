@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard, Briefcase } from 'lucide-react';
+import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { MOCK_PROJECTS } from '../mockData';
+import { ProjectStatus, ProjectDetail } from '../types';
 
 export const CreateProject: React.FC = () => {
   const navigate = useNavigate();
@@ -26,8 +28,30 @@ export const CreateProject: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // In a real app, this would POST to Supabase
-    console.log("Creating project manually:", formData);
+    // Create new Project Object
+    // In a real app, this would be a POST request to Supabase
+    const newProject: ProjectDetail = {
+        id: crypto.randomUUID(),
+        name: formData.name,
+        description: formData.description || 'No description provided.',
+        owner_id: 'u-temp-' + Math.floor(Math.random() * 1000),
+        // Mocking the joined User object
+        owner: {
+            id: 'u-temp-' + Math.floor(Math.random() * 1000),
+            name: formData.owner || 'Unassigned',
+            role: 'PM'
+        },
+        start_date: formData.startDate || new Date().toISOString().split('T')[0],
+        end_date: formData.endDate || new Date(Date.now() + 7776000000).toISOString().split('T')[0], // +90 days approx
+        status: ProjectStatus.ON_TRACK,
+        budget_consumed_percent: 0,
+        tags: [formData.type, 'New'],
+        milestones: [],
+        updates: []
+    };
+
+    // Push to mock store
+    MOCK_PROJECTS.push(newProject);
     
     // Simulate API delay
     setTimeout(() => {
@@ -37,7 +61,7 @@ export const CreateProject: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       
       <div className="flex items-center gap-3 mb-6">
         <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
@@ -119,6 +143,7 @@ export const CreateProject: React.FC = () => {
                     <input
                         type="text"
                         name="owner"
+                        required
                         value={formData.owner}
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400"
@@ -137,6 +162,7 @@ export const CreateProject: React.FC = () => {
                     <input
                         type="date"
                         name="startDate"
+                        required
                         value={formData.startDate}
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900"
@@ -154,6 +180,7 @@ export const CreateProject: React.FC = () => {
                     <input
                         type="date"
                         name="endDate"
+                        required
                         value={formData.endDate}
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-2.5 rounded-lg border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900"
