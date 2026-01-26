@@ -7,37 +7,35 @@ export const DailyLog: React.FC = () => {
   const [showError, setShowError] = useState(false);
 
   const handleSave = async () => {
-    // Validation on click instead of disabling the button
-    if (!text.trim()) {
-      setShowError(true);
-      return;
-    }
+  // Validation on click instead of disabling the button
+  if (!text.trim()) {
+    setShowError(true);
+    return;
+  }
+  
+  setShowError(false);
+  setStatus('saving');
+
+  try {
+    await fetch('/api/daily-update', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text
+      })
+    });
+
+    setStatus('success');
+    setText('');
+
+    setTimeout(() => setStatus('idle'), 3000);
     
-    setShowError(false);
-    setStatus('saving');
+  } catch (error) {
+    console.error("Failed to save log", error);
+    setStatus('idle');
+  }
+};
 
-    try {
-      // Simulation of POST /api/daily-update
-      /*
-      await fetch('/api/daily-update', { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text, timestamp: new Date().toISOString() }) 
-      });
-      */
-      
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      setStatus('success');
-      setText('');
-
-      setTimeout(() => setStatus('idle'), 3000);
-      
-    } catch (error) {
-      console.error("Failed to save log", error);
-      setStatus('idle');
-    }
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
