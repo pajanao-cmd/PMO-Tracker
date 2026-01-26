@@ -87,3 +87,19 @@ export interface RiskAnalysis {
   escalation_required: boolean;
   reason: string;
 }
+
+export interface ProjectDraft {
+  project_name: string;
+  project_type: 'Digital' | 'Training' | 'Internal' | 'Other';
+  owner: string | null;
+  target_date: string | null;
+  initial_status: string;
+}
+
+export interface DailyUpdateAnalysis {
+  project_id: string;
+  status_today: 'On Track' | 'At Risk' | 'Delayed' | 'Completed';
+  progress_note: string;
+  blocker_today: string | null;
+  target_date: string | null;
+}
