@@ -69,13 +69,18 @@ export const ProjectDetail: React.FC = () => {
           if (updatesError) throw updatesError;
           setDailyUpdates(updatesData || []);
 
-          // 4. Generate Mock Chart Data (Simulating Resource Utilization)
+          // 4. Generate Mock Chart Data (Simulating % Plan vs Actual)
           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          const mockData = months.map(m => ({
-              name: m,
-              planned: Math.floor(Math.random() * 100) + 100, // Random between 100-200
-              actual: Math.floor(Math.random() * 80) + 90,   // Random between 90-170
-          }));
+          const mockData = months.map((m, index) => {
+              const plannedVal = Math.round(((index + 1) / 12) * 100);
+              // Simulate actual varying slightly from plan (lagging mostly)
+              const actualVal = Math.min(100, Math.max(0, plannedVal - (Math.random() * 15 - 2)));
+              return {
+                  name: m,
+                  planned: plannedVal,
+                  actual: actualVal,
+              };
+          });
           setChartData(mockData);
 
       } catch (err: any) {
@@ -418,15 +423,15 @@ export const ProjectDetail: React.FC = () => {
           <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
               <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h3 className="font-bold text-slate-900 text-base">Average Utilization</h3>
-                    <p className="text-slate-500 text-xs mt-1">Resource allocation vs capacity over time</p>
+                    <h3 className="font-bold text-slate-900 text-base">Project Progress</h3>
+                    <p className="text-slate-500 text-xs mt-1">% Plan vs Actual Cumulative Progress</p>
                 </div>
                 <div className="flex gap-4 text-xs font-medium">
                     <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> Planned effort
+                        <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Planned
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Capacity
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span> Actual
                     </div>
                 </div>
               </div>
@@ -444,7 +449,8 @@ export const ProjectDetail: React.FC = () => {
                           <YAxis 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                            tick={{ fill: '#94a3b8', fontSize: 12 }}
+                            domain={[0, 100]}
                           />
                           <Tooltip 
                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
@@ -453,18 +459,19 @@ export const ProjectDetail: React.FC = () => {
                           <Line 
                             type="monotone" 
                             dataKey="planned" 
-                            stroke="#fbbf24" 
-                            strokeWidth={3} 
+                            stroke="#cbd5e1" 
+                            strokeWidth={2} 
+                            strokeDasharray="5 5"
                             dot={false} 
-                            activeDot={{ r: 6, fill: '#fbbf24', stroke: '#fff', strokeWidth: 2 }}
+                            activeDot={{ r: 6, fill: '#cbd5e1', stroke: '#fff', strokeWidth: 2 }}
                           />
                           <Line 
                             type="monotone" 
                             dataKey="actual" 
-                            stroke="#10b981" 
+                            stroke="#2563eb" 
                             strokeWidth={3} 
                             dot={false}
-                            activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} 
+                            activeDot={{ r: 6, fill: '#2563eb', stroke: '#fff', strokeWidth: 2 }} 
                           />
                       </LineChart>
                   </ResponsiveContainer>
