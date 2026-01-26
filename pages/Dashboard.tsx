@@ -20,6 +20,7 @@ export const Dashboard: React.FC = () => {
   const [rawUpdateText, setRawUpdateText] = useState('');
   const [processedUpdate, setProcessedUpdate] = useState<SmartUpdate | null>(null);
   const [isProcessingUpdate, setIsProcessingUpdate] = useState(false);
+  const [ingestionError, setIngestionError] = useState<string | null>(null);
 
   // Calculate high-level stats
   const stats = useMemo(() => {
@@ -47,29 +48,43 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleProcessSmartUpdate = async () => {
+      setIngestionError(null);
       if (!rawUpdateText.trim()) return;
+      
       setIsProcessingUpdate(true);
       // Pass ID and Name map for Ingestion logic
       const projectsMap = MOCK_PROJECTS.map(p => ({ id: p.id, name: p.name }));
       
-      const result = await processDataIngestion(rawUpdateText, projectsMap);
-      
-      // If result has an ID, let's try to fill the name for UI friendliness if missing
-      if (result && result.project_id) {
-         const found = MOCK_PROJECTS.find(p => p.id === result.project_id);
-         if (found && !result.project_name) {
-             result.project_name = found.name;
-         }
+      try {
+        const result = await processDataIngestion(rawUpdateText, projectsMap);
+        
+        if (!result) {
+            setIngestionError("Could not process update. Please check if the API Key is configured correctly.");
+            setIsProcessingUpdate(false);
+            return;
+        }
+
+        // If result has an ID, let's try to fill the name for UI friendliness if missing
+        if (result && result.project_id) {
+           const found = MOCK_PROJECTS.find(p => p.id === result.project_id);
+           if (found && !result.project_name) {
+               result.project_name = found.name;
+           }
+        }
+        
+        setProcessedUpdate(result);
+      } catch (e) {
+        setIngestionError("An unexpected error occurred during processing.");
+      } finally {
+        setIsProcessingUpdate(false);
       }
-      
-      setProcessedUpdate(result);
-      setIsProcessingUpdate(false);
   };
 
   const closeSmartUpdate = () => {
       setIsSmartUpdateOpen(false);
       setRawUpdateText('');
       setProcessedUpdate(null);
+      setIngestionError(null);
   }
 
   return (
@@ -253,7 +268,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Monday Briefing Modal */}
       {isBriefingOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
                   <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
                       <div>
@@ -296,7 +311,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Smart Update Processor Modal */}
       {isSmartUpdateOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
                   <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
                       <div>
@@ -314,6 +329,13 @@ export const Dashboard: React.FC = () => {
                   <div className="flex-1 overflow-y-auto p-6 space-y-6">
                       {!processedUpdate ? (
                           <div className="space-y-4">
+                                {ingestionError && (
+                                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
+                                        <AlertTriangle size={20} />
+                                        <p className="text-sm font-medium">{ingestionError}</p>
+                                    </div>
+                                )}
+
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">Raw Input</label>
                                     <div className="relative">
