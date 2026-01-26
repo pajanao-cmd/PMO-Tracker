@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ProjectDetail, DailyLog, SmartUpdate, RiskAnalysis } from "../types";
+import { ProjectDetail, DailyLog, SmartUpdate, RiskAnalysis, ProjectDraft, DailyUpdateAnalysis } from "../types";
 
 const getClient = () => {
     const apiKey = process.env.API_KEY;
@@ -321,6 +321,125 @@ export const analyzeRiskPattern = async (projectName: string, logs: DailyLog[]):
         return null;
     } catch (error) {
         console.error("Gemini API Error (Risk Pattern):", error);
+        return null;
+    }
+};
+
+export const extractNewProjectFromText = async (rawText: string): Promise<ProjectDraft | null> => {
+    const ai = getClient();
+    if (!ai) return null;
+
+    const prompt = `
+    You are a Project Master creation assistant.
+
+    Task: Parse the input text to extract core project definition fields.
+    Input: "${rawText}"
+    (User may type in Thai or English)
+
+    Output Fields:
+    - project_name: Extract the name.
+    - project_type: Classify as 'Digital', 'Training', 'Internal', or 'Other'.
+    - owner: Extract name if mentioned, otherwise null.
+    - target_date: Extract date (YYYY-MM-DD) if explicitly mentioned. If vague (e.g. 'after election'), return null.
+    - initial_status: Always default to 'On Track' unless user explicitly says 'Delayed' or 'At Risk' in the creation text.
+
+    Constraints:
+    - Return STRICT JSON.
+    - Do not invent data.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        project_name: { type: Type.STRING },
+                        project_type: { type: Type.STRING, enum: ['Digital', 'Training', 'Internal', 'Other'] },
+                        owner: { type: Type.STRING, nullable: true },
+                        target_date: { type: Type.STRING, nullable: true, description: "YYYY-MM-DD" },
+                        initial_status: { type: Type.STRING, default: "On Track" }
+                    },
+                    required: ["project_name", "project_type", "initial_status"],
+                }
+            }
+        });
+
+        if (response.text) {
+            return JSON.parse(response.text) as ProjectDraft;
+        }
+        return null;
+    } catch (error) {
+        console.error("Gemini API Error (Project Extraction):", error);
+        return null;
+    }
+};
+
+export const analyzeDailyProjectUpdate = async (
+    projectId: string,
+    projectName: string,
+    currentStatus: string,
+    rawText: string
+): Promise<DailyUpdateAnalysis | null> => {
+    const ai = getClient();
+    if (!ai) return null;
+
+    const prompt = `
+    Role: PMO Daily Update Assistant.
+    
+    Task: Analyze a daily update for an existing project.
+    
+    Context:
+    - Project ID: ${projectId}
+    - Project Name: "${projectName}"
+    - Current Status: "${currentStatus}"
+    
+    Input Text: "${rawText}"
+    (User input in Thai or English)
+    
+    Requirements:
+    1. status_today: Determine if the project is On Track, At Risk, Delayed, or Completed.
+       - If explicit in text, use it.
+       - If blockers/delays mentioned, downgrade status.
+       - If not mentioned/unclear, default to "${currentStatus}".
+    2. progress_note: Summarize work done in Thai. Professional, concise (max 2 sentences).
+    3. blocker_today: Extract blockers. Return null if none.
+    4. target_date: If a new completion date is mentioned, return YYYY-MM-DD. Else null.
+    
+    Constraint:
+    - Return STRICT JSON.
+    - Do not hallucinate blockers.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        project_id: { type: Type.STRING },
+                        status_today: { type: Type.STRING, enum: ['On Track', 'At Risk', 'Delayed', 'Completed'] },
+                        progress_note: { type: Type.STRING },
+                        blocker_today: { type: Type.STRING, nullable: true },
+                        target_date: { type: Type.STRING, nullable: true, description: "YYYY-MM-DD" }
+                    },
+                    required: ["project_id", "status_today", "progress_note", "blocker_today", "target_date"],
+                }
+            }
+        });
+
+        if (response.text) {
+            return JSON.parse(response.text) as DailyUpdateAnalysis;
+        }
+        return null;
+    } catch (error) {
+        console.error("Gemini API Error (Daily Update Analysis):", error);
         return null;
     }
 };
