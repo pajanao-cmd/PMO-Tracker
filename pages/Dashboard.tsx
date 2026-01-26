@@ -191,6 +191,7 @@ export const Dashboard: React.FC = () => {
                             <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project Name</th>
                             <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Owner</th>
                             <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Type</th>
+                            <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Progress</th>
                             <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Last Update</th>
                             <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider">Actions</th>
@@ -234,6 +235,14 @@ export const Dashboard: React.FC = () => {
                                         <span className="px-2 py-0.5 text-[11px] rounded bg-white border border-slate-200 text-slate-500 font-medium shadow-sm">
                                             {p.type}
                                         </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${p.progress || 0}%` }}></div>
+                                            </div>
+                                            <span className="text-[11px] font-bold text-slate-600">{p.progress || 0}%</span>
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono text-xs">
                                         {p.latest_update ? p.latest_update.update_date : '-'}

@@ -51,6 +51,7 @@ CREATE TABLE public.projects (
     end_date DATE NOT NULL,
     status project_status DEFAULT 'ON_TRACK'::project_status,
     budget_consumed_percent INTEGER CHECK (budget_consumed_percent >= 0),
+    progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
     tags TEXT[], -- PostgreSQL array type for tags
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

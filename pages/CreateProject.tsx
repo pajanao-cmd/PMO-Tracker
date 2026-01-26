@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Percent } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
 export const CreateProject: React.FC = () => {
@@ -12,7 +12,8 @@ export const CreateProject: React.FC = () => {
     type: 'Digital',
     owner: '',
     start_date: '',
-    end_date: ''
+    end_date: '',
+    progress: 0
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,6 +39,7 @@ export const CreateProject: React.FC = () => {
                     type: formData.type,
                     start_date: formData.start_date || new Date().toISOString().split('T')[0],
                     end_date: formData.end_date || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    progress: formData.progress,
                     active: true
                 }
             ]);
@@ -169,6 +171,25 @@ export const CreateProject: React.FC = () => {
                         name="end_date"
                         required
                         value={formData.end_date}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
+                    />
+                </div>
+            </div>
+
+            {/* Progress */}
+            <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Initial Progress (%)</label>
+                <div className="relative group">
+                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                        <Percent size={18} />
+                    </div>
+                    <input
+                        type="number"
+                        name="progress"
+                        min="0"
+                        max="100"
+                        value={formData.progress}
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
                     />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye } from 'lucide-react';
+import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
 export const EditProject: React.FC = () => {
@@ -14,7 +14,8 @@ export const EditProject: React.FC = () => {
     owner: '',
     start_date: '',
     end_date: '',
-    active: true
+    active: true,
+    progress: 0
   });
 
   const [loading, setLoading] = useState(true);
@@ -39,7 +40,8 @@ export const EditProject: React.FC = () => {
                     owner: data.owner || '',
                     start_date: data.start_date,
                     end_date: data.end_date,
-                    active: data.active
+                    active: data.active,
+                    progress: data.progress || 0
                 });
             }
         } catch (error: any) {
@@ -75,7 +77,8 @@ export const EditProject: React.FC = () => {
                 type: formData.type,
                 start_date: formData.start_date,
                 end_date: formData.end_date,
-                active: formData.active
+                active: formData.active,
+                progress: formData.progress
             })
             .eq('id', id);
 
@@ -260,6 +263,36 @@ export const EditProject: React.FC = () => {
                     />
                 </div>
             </div>
+
+             {/* Progress */}
+            <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex justify-between">
+                    <span>Completion Progress</span>
+                    <span className="text-blue-600 font-bold">{formData.progress}%</span>
+                </label>
+                <div className="flex items-center gap-4">
+                     <div className="relative group w-full">
+                        <input
+                            type="range"
+                            name="progress"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={formData.progress}
+                            onChange={handleChange}
+                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-between text-xs text-slate-400 mt-2 font-mono">
+                    <span>0%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
+                    <span>100%</span>
+                </div>
+            </div>
+
         </div>
 
         {/* Active Status Toggle */}

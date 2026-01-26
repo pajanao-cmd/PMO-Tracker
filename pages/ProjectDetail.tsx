@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { StatusBadge } from '../components/StatusBadge';
-import { MilestoneStatus, DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate } from '../types';
+import { DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate, Milestone, MilestoneStatus } from '../types';
 import { generateExecutiveRiskAnalysis, generateDailyLog, analyzeRiskPattern } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 
@@ -13,6 +13,7 @@ export const ProjectDetail: React.FC = () => {
   // Data State
   const [project, setProject] = useState<any>(null);
   const [dailyUpdates, setDailyUpdates] = useState<DailyLog[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +48,17 @@ export const ProjectDetail: React.FC = () => {
           if (projectError) throw projectError;
           setProject(projectData);
 
-          // 2. Fetch Daily Updates (Limit 30)
+          // 2. Fetch Milestones
+          const { data: milestonesData, error: milestonesError } = await supabase
+              .from('milestones')
+              .select('*')
+              .eq('project_id', id)
+              .order('due_date', { ascending: true });
+          
+          if (milestonesError) console.warn('Error fetching milestones', milestonesError);
+          setMilestones(milestonesData || []);
+
+          // 3. Fetch Daily Updates (Limit 30)
           const { data: updatesData, error: updatesError } = await supabase
               .from('project_daily_updates')
               .select('*')
@@ -58,7 +69,7 @@ export const ProjectDetail: React.FC = () => {
           if (updatesError) throw updatesError;
           setDailyUpdates(updatesData || []);
 
-          // 3. Generate Mock Chart Data (Simulating Resource Utilization)
+          // 4. Generate Mock Chart Data (Simulating Resource Utilization)
           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
           const mockData = months.map(m => ({
               name: m,
@@ -100,12 +111,13 @@ export const ProjectDetail: React.FC = () => {
         status: dailyUpdates[0]?.status_today as ProjectStatus || ProjectStatus.ON_TRACK,
         description: project.description || 'No description provided.',
         budget_consumed_percent: project.budget_consumed_percent || 0,
+        progress: project.progress || 0,
         tags: project.tags || [],
         start_date: project.start_date,
         end_date: project.end_date,
         owner: { id: '0', name: project.owner, role: 'PM' },
         updates: mockUpdates,
-        milestones: []
+        milestones: milestones
     };
   };
 
@@ -169,6 +181,140 @@ export const ProjectDetail: React.FC = () => {
       setLogBlockers('');
       setLogHelpNeeded(false);
   }
+
+  // --- Timeline Rendering Helpers ---
+  const renderTimeline = () => {
+    if (!project) return null;
+
+    const startDate = new Date(project.start_date);
+    const endDate = new Date(project.end_date);
+    const today = new Date();
+    
+    // Calculate timeline bounds (Start - 7 days, End + 14 days)
+    const timelineStart = new Date(startDate);
+    timelineStart.setDate(timelineStart.getDate() - 7);
+    const timelineEnd = new Date(endDate);
+    timelineEnd.setDate(timelineEnd.getDate() + 14);
+    
+    const totalDuration = timelineEnd.getTime() - timelineStart.getTime();
+
+    // Helper to get % position
+    const getPos = (d: string | Date) => {
+        const date = new Date(d);
+        const diff = date.getTime() - timelineStart.getTime();
+        return Math.max(0, Math.min(100, (diff / totalDuration) * 100));
+    };
+
+    const projectStartPos = getPos(project.start_date);
+    const projectEndPos = getPos(project.end_date);
+    const projectWidth = projectEndPos - projectStartPos;
+    const todayPos = getPos(today);
+
+    // Timeline color based on status
+    const currentStatus = dailyUpdates[0]?.status_today || 'On Track';
+    let barColor = 'bg-blue-600';
+    if (currentStatus === 'At Risk') barColor = 'bg-amber-500';
+    if (currentStatus === 'Delayed') barColor = 'bg-red-500';
+    if (currentStatus === 'Completed') barColor = 'bg-emerald-500';
+
+    return (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <Calendar size={16} className="text-slate-500" />
+                    Project Timeline
+                </h3>
+                <div className="flex gap-4 text-xs font-medium text-slate-500">
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-600"></span> Active Duration</span>
+                    <span className="flex items-center gap-1.5"><Diamond size={10} className="text-purple-600 fill-current" /> Milestone</span>
+                    <span className="flex items-center gap-1.5"><span className="w-0.5 h-3 bg-red-500"></span> Today</span>
+                </div>
+            </div>
+            
+            <div className="p-6 overflow-x-auto">
+                <div className="min-w-[600px] relative">
+                    {/* Time Axis (Simplified) */}
+                    <div className="flex justify-between text-xs text-slate-400 font-mono mb-2 border-b border-slate-100 pb-2">
+                        <span>{timelineStart.toLocaleDateString()}</span>
+                        <span>{timelineEnd.toLocaleDateString()}</span>
+                    </div>
+
+                    {/* Today Marker */}
+                    <div 
+                        className="absolute top-8 bottom-0 w-px bg-red-500 z-20 shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+                        style={{ left: `${todayPos}%` }}
+                    >
+                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                        <div className="absolute -top-6 -left-4 text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">TODAY</div>
+                    </div>
+
+                    {/* Project Bar Row */}
+                    <div className="relative h-12 flex items-center mb-2 group">
+                        <div className="w-1/4 min-w-[150px] pr-4 text-sm font-bold text-slate-700 truncate border-r border-slate-100 mr-4 flex items-center gap-2">
+                            Project Schedule
+                        </div>
+                        <div className="flex-1 relative h-full flex items-center">
+                            {/* Grid Lines */}
+                            <div className="absolute inset-0 flex justify-between opacity-10 pointer-events-none">
+                                {[...Array(10)].map((_, i) => <div key={i} className="w-px h-full bg-slate-400"></div>)}
+                            </div>
+                            {/* The Bar */}
+                            <div 
+                                className={`h-4 rounded-full ${barColor} shadow-sm relative group-hover:h-5 transition-all duration-300`}
+                                style={{ left: `${projectStartPos}%`, width: `${projectWidth}%` }}
+                            >
+                                <span className="absolute -top-6 left-0 text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                    {project.start_date}
+                                </span>
+                                <span className="absolute -top-6 right-0 text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                    {project.end_date}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Milestones Rows */}
+                    {milestones.length > 0 ? (
+                        milestones.map((ms, idx) => {
+                            const msPos = getPos(ms.due_date);
+                            const isPast = new Date(ms.due_date) < today;
+                            return (
+                                <div key={ms.id} className="relative h-10 flex items-center group">
+                                    <div className="w-1/4 min-w-[150px] pr-4 text-xs font-medium text-slate-600 truncate border-r border-slate-100 mr-4 pl-4 flex items-center gap-2">
+                                        {ms.status === MilestoneStatus.COMPLETED ? <Check size={12} className="text-emerald-500" /> : <div className="w-3" />}
+                                        {ms.name}
+                                    </div>
+                                    <div className="flex-1 relative h-full flex items-center">
+                                         <div className="absolute inset-0 flex justify-between opacity-5 pointer-events-none">
+                                            {[...Array(10)].map((_, i) => <div key={i} className="w-px h-full bg-slate-400"></div>)}
+                                        </div>
+                                        <div 
+                                            className="absolute transform -translate-x-1/2 flex flex-col items-center cursor-pointer group-hover:z-10"
+                                            style={{ left: `${msPos}%` }}
+                                        >
+                                            <Diamond 
+                                                size={14} 
+                                                className={`fill-current ${ms.status === MilestoneStatus.COMPLETED ? 'text-emerald-500' : isPast ? 'text-red-400' : 'text-purple-500'} mb-1`} 
+                                            />
+                                            <span className="text-[9px] bg-slate-800 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity absolute top-5 whitespace-nowrap z-50">
+                                                {ms.due_date}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="py-4 text-center text-xs text-slate-400 italic bg-slate-50/30 rounded border border-dashed border-slate-200 mt-2">
+                            No milestones defined for this timeline.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+  };
+  // ---------------------------------
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
   if (error || !project) return <div className="text-center p-10 text-red-500 bg-red-50 rounded-lg m-10 border border-red-200">{error || 'Project not found'}</div>;
@@ -329,9 +475,9 @@ export const ProjectDetail: React.FC = () => {
           <div className="space-y-6 flex flex-col">
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col justify-center items-center relative overflow-hidden">
                   <h4 className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-3 z-10">Completion Progress</h4>
-                  <div className="text-5xl font-bold text-slate-900 z-10 tracking-tight">30%</div>
+                  <div className="text-5xl font-bold text-slate-900 z-10 tracking-tight">{project.progress || 0}%</div>
                   <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-100">
-                      <div className="h-full bg-slate-900 w-[30%]"></div>
+                      <div className="h-full bg-slate-900 transition-all duration-1000" style={{ width: `${project.progress || 0}%` }}></div>
                   </div>
               </div>
               
@@ -345,6 +491,9 @@ export const ProjectDetail: React.FC = () => {
               </div>
           </div>
       </div>
+
+      {/* TIMELINE SECTION */}
+      {renderTimeline()}
 
       {/* AI Insight Box */}
       {aiAnalysis && (
@@ -473,10 +622,29 @@ export const ProjectDetail: React.FC = () => {
                     </h3>
                 </div>
                 <div className="p-6">
-                    <div className="text-center text-slate-400 text-sm flex flex-col items-center gap-2 py-4">
-                        <Target size={32} className="opacity-20" />
-                        <span>Milestone tracking configured in external roadmap.</span>
-                    </div>
+                     {/* Simplified list view since we now have the big chart */}
+                     {milestones.length > 0 ? (
+                        <div className="space-y-4">
+                            {milestones.map((ms) => (
+                                <div key={ms.id} className="flex items-start gap-3">
+                                    <div className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center border ${
+                                        ms.status === MilestoneStatus.COMPLETED ? 'bg-emerald-100 border-emerald-300 text-emerald-600' : 'bg-slate-50 border-slate-300 text-slate-300'
+                                    }`}>
+                                        {ms.status === MilestoneStatus.COMPLETED && <Check size={10} />}
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-bold text-slate-700">{ms.name}</div>
+                                        <div className="text-xs text-slate-400 font-mono">{ms.due_date}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                     ) : (
+                        <div className="text-center text-slate-400 text-sm flex flex-col items-center gap-2 py-4">
+                            <Target size={32} className="opacity-20" />
+                            <span>No milestones configured.</span>
+                        </div>
+                     )}
                 </div>
              </div>
         </div>

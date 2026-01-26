@@ -8,6 +8,7 @@ export interface Project {
   start_date: string; // date string YYYY-MM-DD
   end_date: string;   // date string YYYY-MM-DD
   active: boolean;
+  progress: number; // 0-100
   created_at: string;
 }
 
@@ -114,6 +115,7 @@ export interface ProjectDetail {
   status: ProjectStatus;
   description: string;
   budget_consumed_percent: number;
+  progress: number;
   tags: string[];
   start_date: string;
   end_date: string;
