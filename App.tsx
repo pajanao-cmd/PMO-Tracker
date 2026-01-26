@@ -3,6 +3,7 @@ import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ProjectDetail } from './pages/ProjectDetail';
+import { DailyLog } from './pages/DailyLog';
 
 const App: React.FC = () => {
   return (
@@ -11,6 +12,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/project/:id" element={<ProjectDetail />} />
+          <Route path="/daily" element={<DailyLog />} />
         </Routes>
       </Layout>
     </Router>
