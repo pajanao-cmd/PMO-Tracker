@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save } from 'lucide-react';
 import { 
   LineChart, 
   Line, 
@@ -12,7 +13,7 @@ import {
   Legend
 } from 'recharts';
 import { StatusBadge } from '../components/StatusBadge';
-import { DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate, Milestone, MilestoneStatus } from '../types';
+import { DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate, Milestone, MilestoneStatus, ProjectDailyUpdate } from '../types';
 import { generateExecutiveRiskAnalysis, generateDailyLog, analyzeRiskPattern, generateWeeklyReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 
@@ -21,7 +22,7 @@ export const ProjectDetail: React.FC = () => {
   
   // Data State
   const [project, setProject] = useState<any>(null);
-  const [dailyUpdates, setDailyUpdates] = useState<DailyLog[]>([]);
+  const [dailyUpdates, setDailyUpdates] = useState<ProjectDailyUpdate[]>([]);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyUpdate[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,12 +37,15 @@ export const ProjectDetail: React.FC = () => {
   
   // Daily Log Modal
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [logStatus, setLogStatus] = useState('On Track');
   const [logProgress, setLogProgress] = useState('');
   const [logBlockers, setLogBlockers] = useState('');
   const [logHelpNeeded, setLogHelpNeeded] = useState(false);
   const [generatedLog, setGeneratedLog] = useState<DailyLog | null>(null);
   const [generatingLog, setGeneratingLog] = useState(false);
+  const [savingLog, setSavingLog] = useState(false);
 
   // Refs for Text Manipulation
   const logAchievementsRef = useRef<HTMLTextAreaElement>(null);
@@ -267,7 +271,17 @@ export const ProjectDetail: React.FC = () => {
   const handleAnalyzeRiskPattern = async () => {
       if (!project) return;
       setAnalyzingRisk(true);
-      const result = await analyzeRiskPattern(project.project_name, dailyUpdates.slice(0, 3));
+      // Map ProjectDailyUpdate to DailyLog for AI service
+      const mappedLogs: DailyLog[] = dailyUpdates.slice(0, 3).map(u => ({
+          update_date: u.update_date,
+          status_today: u.status_today,
+          progress_note: u.progress_note,
+          blocker_today: u.blocker_today,
+          help_needed: u.status_today === 'At Risk' || u.status_today === 'Delayed', // infer
+          risk_signal: u.status_today === 'Delayed' ? 'critical' : 'none'
+      }));
+      
+      const result = await analyzeRiskPattern(project.project_name, mappedLogs);
       setRiskAnalysis(result);
       setAnalyzingRisk(false);
   };
@@ -285,24 +299,80 @@ export const ProjectDetail: React.FC = () => {
   const saveGeneratedLog = async () => {
       if (!generatedLog || !id) return;
       try {
-          const { error } = await supabase.from('project_daily_updates').insert([{
-              project_id: id,
-              update_date: generatedLog.update_date,
-              status_today: generatedLog.status_today,
-              progress_note: generatedLog.progress_note,
-              blocker_today: generatedLog.blocker_today === 'None' ? null : generatedLog.blocker_today,
-          }]);
-          if (error) throw error;
-          fetchData();
+          // If editing, use update, else insert
+          // But generatedLog flow is typically for new logs. 
+          // We will treat this as an insert unless we specifically link it to editing.
+          // For simplicity, AI Generation is always a "Drafting" tool.
+          // We apply the generated content to the form fields and close the preview, 
+          // allowing the user to then hit "Save" which handles Update vs Insert.
+          
+          setLogDate(generatedLog.update_date);
+          setLogStatus(generatedLog.status_today);
+          setLogProgress(generatedLog.progress_note);
+          setLogBlockers(generatedLog.blocker_today === 'None' ? '' : (generatedLog.blocker_today || ''));
+          setGeneratedLog(null); // Close preview
+          
+      } catch (err: any) {
+          alert('Failed to apply log: ' + err.message);
+      }
+  };
+
+  const handleManualSaveLog = async () => {
+      if (!id) return;
+      setSavingLog(true);
+
+      const payload = {
+          project_id: id,
+          update_date: logDate,
+          status_today: logStatus,
+          progress_note: logProgress,
+          blocker_today: logBlockers || null
+      };
+
+      try {
+          if (editingLogId) {
+             const { error } = await supabase.from('project_daily_updates').update(payload).eq('id', editingLogId);
+             if (error) throw error;
+          } else {
+             const { error } = await supabase.from('project_daily_updates').insert([payload]);
+             if (error) throw error;
+          }
+          await fetchData();
           closeLogModal();
       } catch (err: any) {
-          alert('Failed to save log: ' + err.message);
+          alert('Error saving log: ' + err.message);
+      } finally {
+          setSavingLog(false);
+      }
+  };
+
+  const handleEditLog = (log: ProjectDailyUpdate) => {
+      setEditingLogId(log.id);
+      setLogDate(log.update_date);
+      setLogStatus(log.status_today);
+      setLogProgress(log.progress_note);
+      setLogBlockers(log.blocker_today || '');
+      setLogHelpNeeded(log.status_today === 'At Risk' || log.status_today === 'Delayed');
+      setGeneratedLog(null);
+      setIsLogModalOpen(true);
+  };
+
+  const handleDeleteLog = async (logId: string) => {
+      if (!confirm("Are you sure you want to delete this log entry?")) return;
+      try {
+          const { error } = await supabase.from('project_daily_updates').delete().eq('id', logId);
+          if (error) throw error;
+          fetchData();
+      } catch (err: any) {
+          alert("Failed to delete log: " + err.message);
       }
   };
 
   const closeLogModal = () => {
       setIsLogModalOpen(false);
       setGeneratedLog(null);
+      setEditingLogId(null);
+      setLogDate(new Date().toISOString().split('T')[0]);
       setLogStatus('On Track');
       setLogProgress('');
       setLogBlockers('');
@@ -317,8 +387,18 @@ export const ProjectDetail: React.FC = () => {
       if (useAI) {
         setGeneratingReport(true);
         try {
+            // Map updates to DailyLog interface expected by AI
+            const mappedLogs: DailyLog[] = dailyUpdates.slice(0, 7).map(u => ({
+                update_date: u.update_date,
+                status_today: u.status_today,
+                progress_note: u.progress_note,
+                blocker_today: u.blocker_today,
+                help_needed: false,
+                risk_signal: 'none'
+            }));
+
             // Generate initial draft using AI
-            const draft = await generateWeeklyReport(project.project_name, dailyUpdates.slice(0, 7)); // Last 7 days
+            const draft = await generateWeeklyReport(project.project_name, mappedLogs); 
             
             if (draft) {
                 setReportData({
@@ -528,7 +608,14 @@ export const ProjectDetail: React.FC = () => {
                         Edit Details
                     </Link>
                     <button 
-                        onClick={() => setIsLogModalOpen(true)}
+                        onClick={() => {
+                            setEditingLogId(null);
+                            setLogDate(new Date().toISOString().split('T')[0]);
+                            setLogStatus('On Track');
+                            setLogProgress('');
+                            setLogBlockers('');
+                            setIsLogModalOpen(true);
+                        }}
                         className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-bold shadow-sm"
                     >
                         <FileText size={16} />
@@ -790,7 +877,25 @@ export const ProjectDetail: React.FC = () => {
                     {activeTab === 'daily' && (
                         <>
                             {dailyUpdates.map((update, idx) => (
-                                <div key={idx} className="p-5 hover:bg-slate-50 transition-colors group">
+                                <div key={idx} className="p-5 hover:bg-slate-50 transition-colors group relative">
+                                    {/* Action Buttons */}
+                                    <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 p-1 rounded-md shadow-sm border border-slate-100">
+                                        <button 
+                                            onClick={() => handleEditLog(update)}
+                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                            title="Edit Log"
+                                        >
+                                            <Edit size={14} />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteLog(update.id)}
+                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                            title="Delete Log"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="flex items-center gap-3">
                                             <span className="text-xs font-mono font-medium text-slate-400 bg-slate-100 px-2 py-1 rounded">
@@ -914,7 +1019,7 @@ export const ProjectDetail: React.FC = () => {
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                       <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                           <Bot className="text-blue-600" size={24} />
-                          AI Daily Log Assistant
+                          {editingLogId ? 'Edit Daily Log' : 'AI Daily Log Assistant'}
                       </h3>
                       <button onClick={closeLogModal} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded-full">
                           <X size={20} />
@@ -924,6 +1029,32 @@ export const ProjectDetail: React.FC = () => {
                   <div className="p-8 space-y-6">
                       {!generatedLog ? (
                           <form onSubmit={handleGenerateLog} className="space-y-6">
+                              <div className="grid grid-cols-2 gap-4">
+                                  {/* Date Picker */}
+                                  <div>
+                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date</label>
+                                     <input 
+                                        type="date"
+                                        value={logDate}
+                                        onChange={(e) => setLogDate(e.target.value)}
+                                        className="w-full rounded-lg border-slate-300 text-sm p-2.5 focus:ring-blue-500 focus:border-blue-500"
+                                     />
+                                  </div>
+                                  
+                                  {/* Escalation Checkbox */}
+                                  <div className="flex items-end">
+                                      <label className={`w-full flex items-center px-4 py-2.5 rounded-lg border cursor-pointer transition-all h-[42px] ${logHelpNeeded ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
+                                          <input 
+                                              type="checkbox" 
+                                              className="rounded border-slate-300 text-red-600 shadow-sm focus:ring-red-500 h-4 w-4"
+                                              checked={logHelpNeeded}
+                                              onChange={e => setLogHelpNeeded(e.target.checked)}
+                                          />
+                                          <span className={`ml-3 text-xs font-bold ${logHelpNeeded ? 'text-red-700' : 'text-slate-600'}`}>Escalation Required</span>
+                                      </label>
+                                  </div>
+                              </div>
+
                               {/* Status */}
                               <div>
                                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status Today</label>
@@ -948,19 +1079,6 @@ export const ProjectDetail: React.FC = () => {
                                   </div>
                               </div>
                               
-                              {/* Escalation Checkbox */}
-                              <div>
-                                  <label className={`flex items-center px-4 py-3 rounded-lg border cursor-pointer transition-all ${logHelpNeeded ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
-                                      <input 
-                                          type="checkbox" 
-                                          className="rounded border-slate-300 text-red-600 shadow-sm focus:ring-red-500 h-4 w-4"
-                                          checked={logHelpNeeded}
-                                          onChange={e => setLogHelpNeeded(e.target.checked)}
-                                      />
-                                      <span className={`ml-3 text-sm font-bold ${logHelpNeeded ? 'text-red-700' : 'text-slate-600'}`}>Escalation Required (Require Help)</span>
-                                  </label>
-                              </div>
-
                               {/* Progress Notes with Toolbar */}
                               <div>
                                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Progress Notes <span className="text-red-500">*</span></label>
@@ -1023,10 +1141,37 @@ export const ProjectDetail: React.FC = () => {
                                   />
                               </div>
 
-                              <div className="pt-2">
-                                  <button type="submit" disabled={generatingLog} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                                      {generatingLog ? <Loader2 className="animate-spin" size={20} /> : <Bot size={20} />} Generate Structured Log
+                              <div className="pt-2 flex flex-col gap-3">
+                                  {/* Manual Save / Update Button */}
+                                  <button 
+                                    type="button"
+                                    onClick={handleManualSaveLog}
+                                    disabled={savingLog || generatingLog}
+                                    className={`w-full py-3 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${editingLogId ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                  >
+                                      {savingLog ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} 
+                                      {editingLogId ? 'Update Log Entry' : 'Save Log Entry'}
                                   </button>
+
+                                  {/* AI Assistant Button (Only show if creating new or if user wants to re-generate) */}
+                                  {!editingLogId && (
+                                      <div className="relative flex items-center py-2">
+                                        <div className="flex-grow border-t border-slate-200"></div>
+                                        <span className="flex-shrink-0 mx-4 text-xs font-semibold text-slate-400">OR ASK AI</span>
+                                        <div className="flex-grow border-t border-slate-200"></div>
+                                      </div>
+                                  )}
+                                  
+                                  {!editingLogId && (
+                                    <button 
+                                        type="submit" 
+                                        disabled={generatingLog || savingLog} 
+                                        className="w-full py-2.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+                                    >
+                                        {generatingLog ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />} 
+                                        Help Me Write This (AI)
+                                    </button>
+                                  )}
                               </div>
                           </form>
                       ) : (
@@ -1037,7 +1182,7 @@ export const ProjectDetail: React.FC = () => {
                               </div>
                               <div className="flex gap-4 pt-2">
                                   <button onClick={() => setGeneratedLog(null)} className="flex-1 py-2.5 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg font-bold transition-colors">Back to Edit</button>
-                                  <button onClick={saveGeneratedLog} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"><Check size={18} /> Confirm & Save</button>
+                                  <button onClick={saveGeneratedLog} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"><Check size={18} /> Use This Content</button>
                               </div>
                           </div>
                       )}
