@@ -31,7 +31,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <div className="mb-2 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Operations</div>
             <nav className="space-y-1 mb-8">
               <NavLink to="/daily-log" icon={<NotebookPen size={18} />} label="Daily Log Entry" active={isActive('/daily-log')} />
-              <NavLink to="#" icon={<BarChart3 size={18} />} label="Reports & Analytics" active={false} />
+              <NavLink to="/reports" icon={<BarChart3 size={18} />} label="Reports & Analytics" active={isActive('/reports')} />
             </nav>
 
             <div className="mb-2 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">System</div>

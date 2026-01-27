@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight } from 'lucide-react';
 import { 
   BarChart, 
   Bar, 
@@ -109,7 +109,18 @@ export const ProjectDetail: React.FC = () => {
           setWeeklyReports(weeklyData || []);
 
           // 5. Generate Mock Chart Data
-          const days = ['Feb 01', 'Feb 02', 'Feb 03', 'Feb 04', 'Feb 05', 'Feb 06', 'Feb 07'];
+          // Use dynamic dates (last 7 days) instead of hardcoded values
+          const getLast7Days = () => {
+            const dates = [];
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date();
+              d.setDate(d.getDate() - i);
+              dates.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            }
+            return dates;
+          };
+          
+          const days = getLast7Days();
           const mockData = days.map((d) => {
               const baseValue = 2000;
               const planned = Math.floor(Math.random() * 2500) + 1500;
@@ -246,7 +257,6 @@ export const ProjectDetail: React.FC = () => {
 
   // Timeline Helper
   const renderTimeline = () => {
-      // (Timeline code identical to previous version, condensed for brevity)
       const startDate = new Date(project.start_date);
       const endDate = new Date(project.end_date);
       const today = new Date();
@@ -527,14 +537,16 @@ export const ProjectDetail: React.FC = () => {
             <div className="absolute top-0 right-0 p-4 opacity-[0.05] pointer-events-none">
                 <Sparkles size={100} className="text-violet-900" />
             </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm text-violet-600 border border-violet-100">
+            <div className="p-3 bg-white rounded-lg shadow-sm text-violet-600 border border-violet-100 flex-shrink-0">
                 <Bot size={24} />
             </div>
-            <div className="relative z-10">
-                <h4 className="font-bold text-violet-900 text-sm uppercase tracking-wide mb-1 flex items-center gap-2">
+            <div className="relative z-10 w-full">
+                <h4 className="font-bold text-violet-900 text-sm uppercase tracking-wide mb-3 flex items-center gap-2">
                     Gemini Executive Insight
                 </h4>
-                <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line font-medium">{aiAnalysis}</p>
+                <div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium font-sans bg-white/50 p-4 rounded-lg border border-violet-100/50">
+                    {aiAnalysis}
+                </div>
             </div>
         </div>
       )}
@@ -636,7 +648,7 @@ export const ProjectDetail: React.FC = () => {
                                     </div>
                                     
                                     <div className="pl-2 border-l-2 border-slate-100 ml-1 space-y-2">
-                                        <p className="text-sm text-slate-700 leading-relaxed font-medium">{update.progress_note}</p>
+                                        <p className="text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{update.progress_note}</p>
                                         {update.blocker_today && update.blocker_today !== 'None' && (
                                             <div className="flex items-start gap-2 text-red-700 text-xs mt-2 bg-red-50 p-2 rounded border border-red-100 w-fit">
                                                 <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
@@ -667,16 +679,16 @@ export const ProjectDetail: React.FC = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                                                 <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Key Achievements</div>
-                                                <p className="text-sm text-slate-700 leading-relaxed">{report.summary_text}</p>
+                                                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{report.summary_text}</p>
                                             </div>
                                             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                                                 <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Risks & Blockers</div>
-                                                <p className="text-sm text-slate-700 leading-relaxed">{report.risks_blockers || 'None reported.'}</p>
+                                                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{report.risks_blockers || 'None reported.'}</p>
                                             </div>
                                         </div>
                                         {report.next_steps && (
                                             <div className="mt-3 flex items-start gap-2 text-xs text-slate-600">
-                                                <ArrowRightIcon />
+                                                <ArrowRight size={14} className="mt-0.5" />
                                                 <span className="font-medium">Next Steps: {report.next_steps}</span>
                                             </div>
                                         )}
@@ -901,8 +913,3 @@ export const ProjectDetail: React.FC = () => {
     </div>
   );
 };
-
-// Small helper for icon
-const ArrowRightIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-);

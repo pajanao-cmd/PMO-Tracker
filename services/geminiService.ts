@@ -15,7 +15,7 @@ export const generateExecutiveRiskAnalysis = async (project: ProjectDetail): Pro
 
     const prompt = `
     Role: Senior PMO Analyst.
-    Task: Analyze the following project data and provide a concise, 2-sentence executive risk assessment.
+    Task: Analyze the following project data and provide a structured executive insights report.
     
     Project: ${project.name}
     Current Status: ${project.status}
@@ -27,8 +27,23 @@ export const generateExecutiveRiskAnalysis = async (project: ProjectDetail): Pro
     Reported Risks:
     "${project.updates[0]?.risks_blockers || 'None'}"
     
-    Format:
-    [Risk Level]: [Assessment]
+    Output Format Requirements:
+    - Use exactly 3 numbered sections (1., 2., 3.).
+    - Use bullet points (•) for details within each section.
+    - Keep it concise, professional, and executive-level.
+    
+    Structure:
+    1. Performance Snapshot
+       • [Brief status assessment and trend]
+       • [Key achievement or metric]
+    
+    2. Critical Risks & Blockers
+       • [Primary risk factor identified]
+       • [Potential impact on timeline/budget]
+    
+    3. Strategic Recommendation
+       • [Immediate action required]
+       • [Decision needed from leadership]
     `;
 
     try {
@@ -136,9 +151,9 @@ export const generateWeeklyReport = async (
     ${JSON.stringify(dailyLogs)}
 
     Requirements:
-    1. summary_text: A high-level paragraph highlighting key achievements this week.
-    2. risks_blockers: Consolidate any blockers mentioned. If none, state "No critical blockers."
-    3. next_steps: Suggest logical next steps based on progress and blockers.
+    1. summary_text: A high-level summary. Use bullet points (•) to list 2-3 key achievements/milestones.
+    2. risks_blockers: Consolidate any blockers mentioned. Use bullet points (•) if multiple.
+    3. next_steps: Suggest logical next steps. Use bullet points (•).
     4. rag_status: Determine overall status (On Track, At Risk, Delayed) based on the logs.
 
     Output format: JSON
@@ -219,8 +234,8 @@ export const generateMondayBriefing = async (projects: ProjectDetail[]): Promise
        - Table styling: clean, borders, standard executive report look.
 
     3. **Recommended Actions**:
-       - A clear list of decisions or approvals needed from the executive team.
-       - Style as a call-to-action box.
+       - A clear numbered list (1, 2, 3) of decisions or approvals needed from the executive team.
+       - Style as a call-to-action box with a light background.
 
     Design Constraints:
     - Use Tailwind CSS classes.

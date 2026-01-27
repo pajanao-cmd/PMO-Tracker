@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Activity, TrendingUp, AlertTriangle, CheckCircle, Loader2, RefreshCw, Trash2, Edit, Eye, Filter, ArrowUpRight, Clock } from 'lucide-react';
+import { Activity, TrendingUp, AlertTriangle, CheckCircle, Loader2, RefreshCw, Trash2, Edit, Eye, Filter, ArrowUpRight, Clock, FileText } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { DashboardProject } from '../types';
 
@@ -96,7 +96,17 @@ export const Dashboard: React.FC = () => {
             <p className="text-slate-500 text-sm mt-1">Real-time portfolio performance and risk analysis.</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+            <Link 
+                to="/daily-log" 
+                className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-bold shadow-sm hover:shadow-md"
+            >
+                <FileText size={16} />
+                Add Daily Entry
+            </Link>
+
+            <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block"></div>
+
+            <span className="text-xs text-slate-400 font-medium flex items-center gap-1 hidden sm:flex">
                 <Clock size={12} /> Last updated: Just now
             </span>
             <button 
@@ -104,7 +114,7 @@ export const Dashboard: React.FC = () => {
                 className="flex items-center gap-2 px-3 py-2 text-sm bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm font-medium"
             >
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                Refresh Data
+                <span className="hidden sm:inline">Refresh Data</span>
             </button>
           </div>
       </div>

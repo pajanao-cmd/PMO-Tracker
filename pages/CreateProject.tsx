@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Percent } from 'lucide-react';
+import { Plus, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 
 export const CreateProject: React.FC = () => {
@@ -177,22 +177,32 @@ export const CreateProject: React.FC = () => {
                 </div>
             </div>
 
-            {/* Progress */}
-            <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Initial Progress (%)</label>
-                <div className="relative group">
-                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                        <Percent size={18} />
+            {/* Progress Slider */}
+            <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex justify-between">
+                    <span>Initial Progress</span>
+                    <span className="text-blue-600 font-bold">{formData.progress}%</span>
+                </label>
+                <div className="flex items-center gap-4">
+                     <div className="relative group w-full">
+                        <input
+                            type="range"
+                            name="progress"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={formData.progress}
+                            onChange={handleChange}
+                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        />
                     </div>
-                    <input
-                        type="number"
-                        name="progress"
-                        min="0"
-                        max="100"
-                        value={formData.progress}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
-                    />
+                </div>
+                <div className="flex justify-between text-xs text-slate-400 mt-2 font-mono">
+                    <span>0%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
+                    <span>100%</span>
                 </div>
             </div>
         </div>
