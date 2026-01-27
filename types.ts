@@ -1,3 +1,4 @@
+
 // Database Entities based on strict schema
 
 export interface Project {
@@ -20,6 +21,11 @@ export interface ProjectDailyUpdate {
   progress_note: string;
   blocker_today: string | null;
   created_at: string;
+}
+
+export interface ProjectType {
+  id: string;
+  name: string;
 }
 
 // Joined View for Dashboard

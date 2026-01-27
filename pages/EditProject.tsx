@@ -1,12 +1,19 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent } from 'lucide-react';
+import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
+import { ProjectTypeManager } from '../components/ProjectTypeManager';
+import { ProjectType } from '../types';
 
 export const EditProject: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
+  // Data State
+  const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
+  const [isTypeManagerOpen, setIsTypeManagerOpen] = useState(false);
+
   // Form State
   const [formData, setFormData] = useState({
     project_name: '',
@@ -23,8 +30,23 @@ export const EditProject: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchProject = async () => {
+    const init = async () => {
         if (!id) return;
+        setLoading(true);
+        await Promise.all([fetchProject(), fetchProjectTypes()]);
+        setLoading(false);
+    };
+    init();
+  }, [id]);
+
+  const fetchProjectTypes = async () => {
+    const { data } = await supabase.from('project_types').select('*').order('name');
+    if (data && data.length > 0) {
+        setProjectTypes(data);
+    }
+  };
+
+  const fetchProject = async () => {
         try {
             const { data, error } = await supabase
                 .from('projects')
@@ -47,12 +69,8 @@ export const EditProject: React.FC = () => {
         } catch (error: any) {
             console.error('Error fetching project:', error);
             setErrorMsg('Failed to load project details.');
-        } finally {
-            setLoading(false);
         }
-    };
-    fetchProject();
-  }, [id]);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -189,7 +207,16 @@ export const EditProject: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Type */}
             <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Project Type</label>
+                 <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Project Type</label>
+                    <button 
+                        type="button" 
+                        onClick={() => setIsTypeManagerOpen(true)}
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors"
+                    >
+                        <Settings size={10} /> Manage Types
+                    </button>
+                </div>
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
                         <Tag size={18} />
@@ -200,11 +227,11 @@ export const EditProject: React.FC = () => {
                         onChange={handleChange}
                         className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 bg-white appearance-none transition-all"
                     >
-                        <option value="Digital">Digital</option>
-                        <option value="Marketing">Marketing</option>
-                        <option value="Infrastructure">Infrastructure</option>
-                        <option value="Process Improvement">Process Improvement</option>
-                        <option value="Other">Other</option>
+                        {projectTypes.length > 0 ? (
+                            projectTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)
+                        ) : (
+                            <option value="Digital">Digital (Default)</option>
+                        )}
                     </select>
                 </div>
             </div>
@@ -336,6 +363,14 @@ export const EditProject: React.FC = () => {
             </button>
         </div>
       </form>
+
+      {/* Dynamic Type Manager Modal */}
+      <ProjectTypeManager 
+         isOpen={isTypeManagerOpen} 
+         onClose={() => setIsTypeManagerOpen(false)}
+         onChange={fetchProjectTypes} 
+      />
+
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 -- -----------------------------------------------------------------------------
 -- Orbit PMO Tracker - Supabase Schema
 -- -----------------------------------------------------------------------------
@@ -85,6 +86,22 @@ CREATE TABLE public.project_updates (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 7. Project Types Table (Dynamic Management)
+CREATE TABLE public.project_types (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert Defaults
+INSERT INTO public.project_types (name) VALUES
+('Digital'),
+('Marketing'),
+('Infrastructure'),
+('Process Improvement'),
+('Other')
+ON CONFLICT (name) DO NOTHING;
+
 -- -----------------------------------------------------------------------------
 -- Indexes and Optimization
 -- -----------------------------------------------------------------------------
@@ -110,6 +127,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_updates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_types ENABLE ROW LEVEL SECURITY;
 
 -- Policy Example: View Access
 -- "Anyone who is authenticated can view all projects"
@@ -126,3 +144,10 @@ CREATE POLICY "Enable update for owners and admins" ON public.projects
         OR 
         EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'ADMIN')
     );
+
+-- Project Types Policies
+CREATE POLICY "Enable read access for authenticated users" ON public.project_types
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Enable all access for authenticated users" ON public.project_types
+    FOR ALL USING (auth.role() = 'authenticated');

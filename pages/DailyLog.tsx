@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Check, Loader2, PenLine, AlertCircle, LayoutDashboard, Calendar, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Save, Check, Loader2, PenLine, AlertCircle, LayoutDashboard, Calendar, ChevronDown, Bold, Italic, Underline, List, ListOrdered } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { Project } from '../types';
 
@@ -17,6 +17,9 @@ export const DailyLog: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Refs for Text Manipulation
+  const achievementsRef = useRef<HTMLTextAreaElement>(null);
 
   // 1. Fetch Active Projects on Mount
   useEffect(() => {
@@ -40,7 +43,59 @@ export const DailyLog: React.FC = () => {
     fetchProjects();
   }, []);
 
-  // 2. Handle Save to DB
+  // 2. Text Formatting Helper
+  const insertFormat = (type: 'bold' | 'italic' | 'underline' | 'bullet' | 'number') => {
+    const textarea = achievementsRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+    
+    let newText = '';
+    let newCursorPos = start;
+
+    switch (type) {
+      case 'bold':
+        newText = text.substring(0, start) + `**${selectedText}**` + text.substring(end);
+        newCursorPos = end + 4; // Moves cursor after the closing **
+        if (selectedText.length === 0) newCursorPos = start + 2; // Position between **|**
+        break;
+      case 'italic':
+        newText = text.substring(0, start) + `*${selectedText}*` + text.substring(end);
+        newCursorPos = end + 2;
+        if (selectedText.length === 0) newCursorPos = start + 1;
+        break;
+      case 'underline':
+        newText = text.substring(0, start) + `__${selectedText}__` + text.substring(end);
+        newCursorPos = end + 4;
+        if (selectedText.length === 0) newCursorPos = start + 2;
+        break;
+      case 'bullet':
+        // If at start of line, just insert. If not, insert newline then bullet
+        const prefix = (start > 0 && text[start - 1] !== '\n') ? '\n• ' : '• ';
+        newText = text.substring(0, start) + prefix + text.substring(end);
+        newCursorPos = start + prefix.length;
+        break;
+      case 'number':
+        const numPrefix = (start > 0 && text[start - 1] !== '\n') ? '\n1. ' : '1. ';
+        newText = text.substring(0, start) + numPrefix + text.substring(end);
+        newCursorPos = start + numPrefix.length;
+        break;
+    }
+
+    setProgressNote(newText);
+    
+    // Defer focus and cursor update to allow React render
+    setTimeout(() => {
+        textarea.focus();
+        textarea.selectionStart = newCursorPos;
+        textarea.selectionEnd = newCursorPos;
+    }, 0);
+  };
+
+  // 3. Handle Save to DB
   const handleSave = async () => {
     if (!selectedProjectId || !progressNote.trim()) {
         setErrorMsg('Please select a project and enter a progress note.');
@@ -165,15 +220,53 @@ export const DailyLog: React.FC = () => {
             </div>
         </div>
 
-        {/* Progress Note */}
+        {/* Progress Note with Toolbar */}
         <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Achievements <span className="text-red-500">*</span></label>
-            <textarea
-                value={progressNote}
-                onChange={(e) => setProgressNote(e.target.value)}
-                placeholder="Briefly describe what was completed..."
-                className="w-full h-32 p-4 text-slate-800 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none text-sm leading-relaxed shadow-sm transition-shadow"
-            />
+            <div className="border border-slate-300 rounded-lg shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all bg-white">
+                {/* Toolbar */}
+                <div className="bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1 select-none">
+                    <button 
+                        type="button" onClick={() => insertFormat('bold')} 
+                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Bold"
+                    >
+                        <Bold size={16} />
+                    </button>
+                    <button 
+                        type="button" onClick={() => insertFormat('italic')} 
+                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Italic"
+                    >
+                        <Italic size={16} />
+                    </button>
+                    <button 
+                        type="button" onClick={() => insertFormat('underline')} 
+                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Underline"
+                    >
+                        <Underline size={16} />
+                    </button>
+                    <div className="w-px h-5 bg-slate-200 mx-2"></div>
+                    <button 
+                        type="button" onClick={() => insertFormat('bullet')} 
+                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Bullet List"
+                    >
+                        <List size={16} />
+                    </button>
+                    <button 
+                        type="button" onClick={() => insertFormat('number')} 
+                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Numbered List"
+                    >
+                        <ListOrdered size={16} />
+                    </button>
+                </div>
+                {/* Textarea */}
+                <textarea
+                    ref={achievementsRef}
+                    value={progressNote}
+                    onChange={(e) => setProgressNote(e.target.value)}
+                    placeholder="Briefly describe what was completed... (Supports Markdown)"
+                    className="w-full h-36 p-4 text-slate-800 border-none focus:ring-0 resize-none text-sm leading-relaxed"
+                />
+            </div>
         </div>
 
         {/* Blockers */}
