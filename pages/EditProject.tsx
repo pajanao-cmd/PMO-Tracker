@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings } from 'lucide-react';
+import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings, DollarSign, Repeat } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { ProjectTypeManager } from '../components/ProjectTypeManager';
 import { ProjectType } from '../types';
@@ -22,7 +22,9 @@ export const EditProject: React.FC = () => {
     start_date: '',
     end_date: '',
     active: true,
-    progress: 0
+    progress: 0,
+    total_budget: '',
+    billing_cycle_count: 1
   });
 
   const [loading, setLoading] = useState(true);
@@ -63,7 +65,9 @@ export const EditProject: React.FC = () => {
                     start_date: data.start_date,
                     end_date: data.end_date,
                     active: data.active,
-                    progress: data.progress || 0
+                    progress: data.progress || 0,
+                    total_budget: data.total_budget || '',
+                    billing_cycle_count: data.billing_cycle_count || 1
                 });
             }
         } catch (error: any) {
@@ -114,7 +118,9 @@ export const EditProject: React.FC = () => {
                 start_date: formData.start_date,
                 end_date: formData.end_date,
                 active: formData.active,
-                progress: formData.progress
+                progress: formData.progress,
+                total_budget: formData.total_budget ? parseFloat(String(formData.total_budget)) : 0,
+                billing_cycle_count: formData.billing_cycle_count
             })
             .eq('id', id);
 
@@ -309,6 +315,54 @@ export const EditProject: React.FC = () => {
                         onClick={(e) => (e.target as any).showPicker?.()}
                         className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all cursor-pointer appearance-none"
                     />
+                </div>
+            </div>
+
+            {/* Financials Section */}
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="md:col-span-2 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-2 mb-2">
+                    Financials & Billing
+                </div>
+                
+                {/* Total Budget */}
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Project Value</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-green-600 transition-colors">
+                            <DollarSign size={18} />
+                        </div>
+                        <input
+                            type="number"
+                            name="total_budget"
+                            min="0"
+                            step="0.01"
+                            value={formData.total_budget}
+                            onChange={handleChange}
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-green-500 focus:ring-green-500 shadow-sm text-slate-900 font-mono transition-all"
+                            placeholder="0.00"
+                        />
+                    </div>
+                </div>
+
+                {/* Billing Cycles */}
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Billing Cycles</label>
+                    <div className="relative group">
+                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                            <Repeat size={18} />
+                        </div>
+                        <input
+                            type="number"
+                            name="billing_cycle_count"
+                            min="1"
+                            step="1"
+                            value={formData.billing_cycle_count}
+                            onChange={handleChange}
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
+                            placeholder="e.g. 4"
+                        />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Number of payment milestones/installments.</p>
                 </div>
             </div>
 

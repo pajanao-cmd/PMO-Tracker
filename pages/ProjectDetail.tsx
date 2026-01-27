@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save, Repeat } from 'lucide-react';
 import { 
   LineChart, 
   Line, 
@@ -650,14 +650,29 @@ export const ProjectDetail: React.FC = () => {
                     {project.owner}
                 </div>
             </div>
+            {/* Financials & Billing (Updated) */}
             <div className="px-4 flex flex-col justify-center">
                 <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                    <DollarSign size={12} /> Budget Used
+                    <DollarSign size={12} /> Financials & Billing
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-2.5 mb-1 max-w-[140px]">
-                    <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${project.budget_consumed_percent || 0}%` }}></div>
+                <div className="flex flex-col gap-1">
+                     <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                         {project.total_budget ? (
+                            new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(project.total_budget)
+                         ) : (
+                            <span className="text-slate-400 italic">Not set</span>
+                         )}
+                         {project.billing_cycle_count > 1 && (
+                            <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold" title="Billing Cycles">
+                                {project.billing_cycle_count} Cycles
+                            </span>
+                         )}
+                     </div>
+                     <div className="w-full bg-slate-200 rounded-full h-1.5 max-w-[140px]">
+                        <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${project.budget_consumed_percent || 0}%` }}></div>
+                    </div>
+                    <span className="text-[10px] font-medium text-slate-500">{project.budget_consumed_percent || 0}% Consumed</span>
                 </div>
-                <span className="text-xs font-medium text-slate-600">{project.budget_consumed_percent || 0}% Consumed</span>
             </div>
             <div className="px-4 flex flex-col justify-center">
                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
