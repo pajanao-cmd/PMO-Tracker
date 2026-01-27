@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus } from 'lucide-react';
 import { 
   LineChart, 
   Line, 
@@ -55,6 +55,7 @@ export const ProjectDetail: React.FC = () => {
       next_steps: string;
       rag_status: string;
       week_ending: string;
+      progress: number;
   } | null>(null);
 
   const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysis | null>(null);
@@ -296,34 +297,65 @@ export const ProjectDetail: React.FC = () => {
   };
 
   // --- Weekly Report Logic ---
-  const openReportModal = async () => {
+  const openReportModal = async (useAI = true) => {
       setIsReportModalOpen(true);
-      setGeneratingReport(true);
-      // Generate initial draft using AI
-      const draft = await generateWeeklyReport(project.project_name, dailyUpdates.slice(0, 7)); // Last 7 days
+      const currentProgress = project?.progress || 0;
       
-      if (draft) {
-          setReportData({
-              ...draft,
-              week_ending: new Date().toISOString().split('T')[0] // Default to today
-          });
+      if (useAI) {
+        setGeneratingReport(true);
+        try {
+            // Generate initial draft using AI
+            const draft = await generateWeeklyReport(project.project_name, dailyUpdates.slice(0, 7)); // Last 7 days
+            
+            if (draft) {
+                setReportData({
+                    ...draft,
+                    week_ending: new Date().toISOString().split('T')[0], // Default to today
+                    progress: currentProgress
+                });
+            } else {
+                // Fallback if AI fails or no data
+                setReportData({
+                    summary_text: '',
+                    risks_blockers: '',
+                    next_steps: '',
+                    rag_status: 'On Track',
+                    week_ending: new Date().toISOString().split('T')[0],
+                    progress: currentProgress
+                });
+            }
+        } catch (e) {
+            console.error("AI Report Generation Error", e);
+            setReportData({
+                summary_text: '',
+                risks_blockers: '',
+                next_steps: '',
+                rag_status: 'On Track',
+                week_ending: new Date().toISOString().split('T')[0],
+                progress: currentProgress
+            });
+        } finally {
+            setGeneratingReport(false);
+        }
       } else {
-          // Fallback if AI fails
+          // Manual Mode
           setReportData({
               summary_text: '',
               risks_blockers: '',
               next_steps: '',
               rag_status: 'On Track',
-              week_ending: new Date().toISOString().split('T')[0]
+              week_ending: new Date().toISOString().split('T')[0],
+              progress: currentProgress
           });
+          setGeneratingReport(false);
       }
-      setGeneratingReport(false);
   };
 
   const handleSaveReport = async () => {
       if (!reportData || !id) return;
       try {
-          const { error } = await supabase.from('project_updates').insert([{
+          // 1. Save Report Record
+          const { error: reportError } = await supabase.from('project_updates').insert([{
               project_id: id,
               week_ending: reportData.week_ending,
               summary_text: reportData.summary_text,
@@ -332,7 +364,15 @@ export const ProjectDetail: React.FC = () => {
               rag_status: reportData.rag_status
           }]);
 
-          if (error) throw error;
+          if (reportError) throw reportError;
+
+          // 2. Update Project Progress
+          const { error: projError } = await supabase.from('projects').update({
+              progress: reportData.progress
+          }).eq('id', id);
+
+          if (projError) throw projError;
+
           fetchData();
           setIsReportModalOpen(false);
           setReportData(null);
@@ -470,7 +510,7 @@ export const ProjectDetail: React.FC = () => {
                         Add Daily Entry
                     </button>
                     <button 
-                        onClick={openReportModal}
+                        onClick={() => openReportModal(true)}
                         className="flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-all text-sm font-bold shadow-sm"
                     >
                         <ClipboardList size={16} />
@@ -786,7 +826,15 @@ export const ProjectDetail: React.FC = () => {
                                 <div className="p-10 text-center flex flex-col items-center gap-3">
                                     <div className="p-3 bg-violet-50 rounded-full text-violet-300"><ClipboardList size={24} /></div>
                                     <div className="text-slate-500 font-medium text-sm">No weekly reports generated yet.</div>
-                                    <button onClick={openReportModal} className="text-xs text-violet-600 font-bold hover:underline">Generate your first report now</button>
+                                    
+                                    <div className="flex flex-col sm:flex-row gap-3 mt-2">
+                                        <button onClick={() => openReportModal(true)} className="px-4 py-2 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-violet-100 transition-colors border border-violet-100">
+                                            <Sparkles size={14} /> Generate with AI
+                                        </button>
+                                        <button onClick={() => openReportModal(false)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                                            <Plus size={14} /> Create Manually
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </>
@@ -968,6 +1016,121 @@ export const ProjectDetail: React.FC = () => {
                               </div>
                           </div>
                       )}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Weekly Report Modal */}
+      {isReportModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200 border border-slate-200">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-violet-50">
+                      <h3 className="text-lg font-bold text-violet-900 flex items-center gap-2">
+                          <ClipboardList className="text-violet-600" size={24} />
+                          Weekly Progress Report
+                      </h3>
+                      <button onClick={() => setIsReportModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded-full">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  
+                  <div className="p-8 space-y-6">
+                      {generatingReport ? (
+                          <div className="flex flex-col items-center justify-center py-10">
+                              <Loader2 className="animate-spin text-violet-600 mb-4" size={40} />
+                              <p className="text-slate-600 font-medium">Synthesizing daily logs...</p>
+                              <p className="text-slate-400 text-sm">Analyzing last 7 days of activity</p>
+                          </div>
+                      ) : reportData ? (
+                          <div className="space-y-5">
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Week Ending</label>
+                                    <input 
+                                        type="date" 
+                                        value={reportData.week_ending}
+                                        onChange={(e) => setReportData({...reportData, week_ending: e.target.value})}
+                                        className="w-full rounded-lg border-slate-300 text-sm p-2.5"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Overall Status</label>
+                                    <select 
+                                        value={reportData.rag_status}
+                                        onChange={(e) => setReportData({...reportData, rag_status: e.target.value})}
+                                        className="w-full rounded-lg border-slate-300 text-sm p-2.5"
+                                    >
+                                        <option value="On Track">On Track</option>
+                                        <option value="At Risk">At Risk</option>
+                                        <option value="Delayed">Delayed</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                </div>
+                             </div>
+
+                             {/* Progress Slider */}
+                             <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-3 flex justify-between">
+                                    <span>Project Completion</span>
+                                    <span className="text-violet-600 font-bold text-sm">{reportData.progress}%</span>
+                                </label>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="100" 
+                                    step="5"
+                                    value={reportData.progress}
+                                    onChange={(e) => setReportData({...reportData, progress: parseInt(e.target.value)})}
+                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-violet-600 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                />
+                                <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-mono">
+                                    <span>0%</span>
+                                    <span>25%</span>
+                                    <span>50%</span>
+                                    <span>75%</span>
+                                    <span>100%</span>
+                                </div>
+                             </div>
+
+                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Executive Summary (Achievements)</label>
+                                <textarea 
+                                    rows={4}
+                                    value={reportData.summary_text}
+                                    onChange={(e) => setReportData({...reportData, summary_text: e.target.value})}
+                                    className="w-full rounded-lg border-slate-300 text-sm p-3 focus:ring-violet-500 focus:border-violet-500"
+                                />
+                             </div>
+
+                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Risks & Blockers</label>
+                                <textarea 
+                                    rows={2}
+                                    value={reportData.risks_blockers}
+                                    onChange={(e) => setReportData({...reportData, risks_blockers: e.target.value})}
+                                    className="w-full rounded-lg border-slate-300 text-sm p-3 focus:ring-violet-500 focus:border-violet-500"
+                                />
+                             </div>
+
+                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Next Steps</label>
+                                <textarea 
+                                    rows={2}
+                                    value={reportData.next_steps}
+                                    onChange={(e) => setReportData({...reportData, next_steps: e.target.value})}
+                                    className="w-full rounded-lg border-slate-300 text-sm p-3 focus:ring-violet-500 focus:border-violet-500"
+                                />
+                             </div>
+
+                             <div className="pt-4 flex gap-4">
+                                <button onClick={() => setIsReportModalOpen(false)} className="flex-1 py-3 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50">Discard</button>
+                                <button onClick={handleSaveReport} className="flex-1 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-bold shadow-md flex items-center justify-center gap-2">
+                                    <Check size={18} /> Publish Report
+                                </button>
+                             </div>
+                          </div>
+                      ) : null}
                   </div>
               </div>
           </div>
