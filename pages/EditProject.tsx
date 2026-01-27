@@ -312,32 +312,47 @@ export const EditProject: React.FC = () => {
                 </div>
             </div>
 
-             {/* Progress */}
-            <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex justify-between">
-                    <span>Completion Progress</span>
-                    <span className="text-blue-600 font-bold">{formData.progress}%</span>
-                </label>
-                <div className="flex items-center gap-4">
-                     <div className="relative group w-full">
+             {/* Progress (Enhanced) */}
+            <div className="md:col-span-2 bg-slate-50 p-5 rounded-xl border border-slate-200">
+                <div className="flex justify-between items-end mb-4">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                        Completion Progress
+                    </label>
+                    <div className="relative">
                         <input
-                            type="range"
-                            name="progress"
+                            type="number"
                             min="0"
                             max="100"
-                            step="5"
                             value={formData.progress}
-                            onChange={handleChange}
-                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            onChange={(e) => {
+                                let val = parseInt(e.target.value);
+                                if (isNaN(val)) val = 0;
+                                if (val > 100) val = 100;
+                                if (val < 0) val = 0;
+                                setFormData(prev => ({...prev, progress: val}));
+                            }}
+                            className="w-24 text-right pr-8 py-2 rounded-lg border border-slate-300 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                         />
+                        <span className="absolute right-3 top-2 text-slate-400 text-sm font-bold select-none">%</span>
                     </div>
                 </div>
-                <div className="flex justify-between text-xs text-slate-400 mt-2 font-mono">
-                    <span>0%</span>
-                    <span>25%</span>
-                    <span>50%</span>
-                    <span>75%</span>
-                    <span>100%</span>
+                
+                <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={formData.progress}
+                    onChange={(e) => setFormData(prev => ({...prev, progress: parseInt(e.target.value)}))}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+
+                <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-mono font-medium select-none">
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 0}))} className="hover:text-blue-600 transition-colors">0%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 25}))} className="hover:text-blue-600 transition-colors">25%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 50}))} className="hover:text-blue-600 transition-colors">50%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 75}))} className="hover:text-blue-600 transition-colors">75%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 100}))} className="hover:text-blue-600 transition-colors">100%</button>
                 </div>
             </div>
 

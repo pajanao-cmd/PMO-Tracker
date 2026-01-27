@@ -1,7 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Save, Check, Loader2, PenLine, AlertCircle, LayoutDashboard, Calendar, ChevronDown, Bold, Italic, Underline, List, ListOrdered } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { Save, Check, Loader2, PenLine, AlertCircle, LayoutDashboard, Calendar, ChevronDown, Plus, Trash2, CheckSquare, Square, Clock } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { Project } from '../types';
+
+interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+  percentage: number;
+  dueDate: string;
+}
 
 export const DailyLog: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -10,16 +19,17 @@ export const DailyLog: React.FC = () => {
   // Form State
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
-  const [progressNote, setProgressNote] = useState('');
   const [statusToday, setStatusToday] = useState('On Track');
   const [blocker, setBlocker] = useState('');
+  
+  // Checklist State
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([
+    { id: '1', text: '', completed: false, percentage: 0, dueDate: '' }
+  ]);
   
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-
-  // Refs for Text Manipulation
-  const achievementsRef = useRef<HTMLTextAreaElement>(null);
 
   // 1. Fetch Active Projects on Mount
   useEffect(() => {
@@ -43,65 +53,78 @@ export const DailyLog: React.FC = () => {
     fetchProjects();
   }, []);
 
-  // 2. Text Formatting Helper
-  const insertFormat = (type: 'bold' | 'italic' | 'underline' | 'bullet' | 'number') => {
-    const textarea = achievementsRef.current;
-    if (!textarea) return;
+  // 2. Checklist Handlers
+  const handleAddTask = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const newId = Date.now().toString();
+    setChecklist([...checklist, { id: newId, text: '', completed: false, percentage: 0, dueDate: '' }]);
+  };
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const selectedText = text.substring(start, end);
-    
-    let newText = '';
-    let newCursorPos = start;
+  const handleUpdateTask = (id: string, field: keyof ChecklistItem, value: any) => {
+    setChecklist(checklist.map(item => {
+        if (item.id === id) {
+            const updated = { ...item, [field]: value };
+            // Auto-update logic: if completed, set to 100%. If uncompleted and 100%, maybe leave it or set to 0?
+            // Let's keep it simple: If user clicks check, we handle that in handleToggleTask
+            if (field === 'percentage' && typeof value === 'number') {
+                 if (value === 100 && !item.completed) updated.completed = true;
+                 if (value < 100 && item.completed) updated.completed = false;
+            }
+            return updated;
+        }
+        return item;
+    }));
+  };
 
-    switch (type) {
-      case 'bold':
-        newText = text.substring(0, start) + `**${selectedText}**` + text.substring(end);
-        newCursorPos = end + 4; // Moves cursor after the closing **
-        if (selectedText.length === 0) newCursorPos = start + 2; // Position between **|**
-        break;
-      case 'italic':
-        newText = text.substring(0, start) + `*${selectedText}*` + text.substring(end);
-        newCursorPos = end + 2;
-        if (selectedText.length === 0) newCursorPos = start + 1;
-        break;
-      case 'underline':
-        newText = text.substring(0, start) + `__${selectedText}__` + text.substring(end);
-        newCursorPos = end + 4;
-        if (selectedText.length === 0) newCursorPos = start + 2;
-        break;
-      case 'bullet':
-        // If at start of line, just insert. If not, insert newline then bullet
-        const prefix = (start > 0 && text[start - 1] !== '\n') ? '\n• ' : '• ';
-        newText = text.substring(0, start) + prefix + text.substring(end);
-        newCursorPos = start + prefix.length;
-        break;
-      case 'number':
-        const numPrefix = (start > 0 && text[start - 1] !== '\n') ? '\n1. ' : '1. ';
-        newText = text.substring(0, start) + numPrefix + text.substring(end);
-        newCursorPos = start + numPrefix.length;
-        break;
+  const handleToggleTask = (id: string) => {
+    setChecklist(checklist.map(item => {
+        if (item.id === id) {
+            const newCompleted = !item.completed;
+            return { 
+                ...item, 
+                completed: newCompleted,
+                percentage: newCompleted ? 100 : (item.percentage === 100 ? 0 : item.percentage)
+            };
+        }
+        return item;
+    }));
+  };
+
+  const handleRemoveTask = (id: string) => {
+    if (checklist.length === 1) {
+        setChecklist([{ id: Date.now().toString(), text: '', completed: false, percentage: 0, dueDate: '' }]);
+        return;
     }
+    setChecklist(checklist.filter(item => item.id !== id));
+  };
 
-    setProgressNote(newText);
-    
-    // Defer focus and cursor update to allow React render
-    setTimeout(() => {
-        textarea.focus();
-        textarea.selectionStart = newCursorPos;
-        textarea.selectionEnd = newCursorPos;
-    }, 0);
+  const handleKeyDown = (e: React.KeyboardEvent, id: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTask();
+    }
+    if (e.key === 'Backspace' && (e.target as HTMLInputElement).value === '') {
+       // Only remove if it's the text input that triggered backspace on empty
+       // We can't easily detect which input triggered it here without ref check, 
+       // but typically this UX is for the main text field.
+       // e.preventDefault();
+       // handleRemoveTask(id);
+    }
   };
 
   // 3. Handle Save to DB
   const handleSave = async () => {
-    if (!selectedProjectId || !progressNote.trim()) {
-        setErrorMsg('Please select a project and enter a progress note.');
+    // Validate
+    const validTasks = checklist.filter(c => c.text.trim() !== '');
+    
+    if (!selectedProjectId) {
+        setErrorMsg('Please select a project.');
         return;
     }
-
+    if (validTasks.length === 0) {
+        setErrorMsg('Please add at least one task or achievement.');
+        return;
+    }
     if (!logDate) {
         setErrorMsg('Please select a valid date.');
         return;
@@ -109,6 +132,19 @@ export const DailyLog: React.FC = () => {
 
     setIsSaving(true);
     setErrorMsg('');
+
+    // Serialize checklist to string with rich info
+    // Format: - [x] Task Text (50%) [Due: YYYY-MM-DD]
+    const progressNote = validTasks
+        .map(item => {
+            let meta = [];
+            if (item.percentage > 0 && item.percentage < 100) meta.push(`(${item.percentage}%)`);
+            if (item.dueDate) meta.push(`[Due: ${item.dueDate}]`);
+            
+            const metaStr = meta.length > 0 ? ` ${meta.join(' ')}` : '';
+            return `- [${item.completed ? 'x' : ' '}] ${item.text}${metaStr}`;
+        })
+        .join('\n');
 
     try {
         const { error } = await supabase
@@ -126,10 +162,10 @@ export const DailyLog: React.FC = () => {
         if (error) throw error;
 
         setSaveStatus('success');
-        setProgressNote('');
+        // Reset checklist to one empty item
+        setChecklist([{ id: Date.now().toString(), text: '', completed: false, percentage: 0, dueDate: '' }]);
         setBlocker('');
-        // Don't reset date or project for ease of multiple entries
-        // Reset success message after 3 seconds
+        
         setTimeout(() => setSaveStatus('idle'), 3000);
 
     } catch (err: any) {
@@ -142,17 +178,17 @@ export const DailyLog: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-6 space-y-6 animate-in fade-in duration-500 pb-20">
+    <div className="max-w-3xl mx-auto mt-6 space-y-6 animate-in fade-in duration-500 pb-20">
       
       <div className="text-center mb-8">
         <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
             <PenLine size={24} />
         </div>
         <h1 className="text-2xl font-bold text-slate-900">Daily Progress Log</h1>
-        <p className="text-slate-500 mt-2 text-sm">Record your key achievements and potential blockers for the day.</p>
+        <p className="text-slate-500 mt-2 text-sm">Track your daily tasks and update their completion status.</p>
       </div>
 
-      <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
+      <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Project Dropdown */}
@@ -220,53 +256,99 @@ export const DailyLog: React.FC = () => {
             </div>
         </div>
 
-        {/* Progress Note with Toolbar */}
+        {/* Checklist Builder */}
         <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Achievements <span className="text-red-500">*</span></label>
-            <div className="border border-slate-300 rounded-lg shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all bg-white">
-                {/* Toolbar */}
-                <div className="bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1 select-none">
-                    <button 
-                        type="button" onClick={() => insertFormat('bold')} 
-                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Bold"
-                    >
-                        <Bold size={16} />
-                    </button>
-                    <button 
-                        type="button" onClick={() => insertFormat('italic')} 
-                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Italic"
-                    >
-                        <Italic size={16} />
-                    </button>
-                    <button 
-                        type="button" onClick={() => insertFormat('underline')} 
-                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Underline"
-                    >
-                        <Underline size={16} />
-                    </button>
-                    <div className="w-px h-5 bg-slate-200 mx-2"></div>
-                    <button 
-                        type="button" onClick={() => insertFormat('bullet')} 
-                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Bullet List"
-                    >
-                        <List size={16} />
-                    </button>
-                    <button 
-                        type="button" onClick={() => insertFormat('number')} 
-                        className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Numbered List"
-                    >
-                        <ListOrdered size={16} />
-                    </button>
-                </div>
-                {/* Textarea */}
-                <textarea
-                    ref={achievementsRef}
-                    value={progressNote}
-                    onChange={(e) => setProgressNote(e.target.value)}
-                    placeholder="Briefly describe what was completed... (Supports Markdown)"
-                    className="w-full h-36 p-4 text-slate-800 border-none focus:ring-0 resize-none text-sm leading-relaxed"
-                />
+            <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Task Checklist <span className="text-red-500">*</span></label>
+                <button 
+                    onClick={handleAddTask}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                >
+                    <Plus size={14} /> Add Task
+                </button>
             </div>
+            
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50">
+                <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 flex text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <div className="w-8"></div>
+                    <div className="flex-1">Task Description</div>
+                    <div className="w-20 text-center hidden sm:block">Progress</div>
+                    <div className="w-32 text-left hidden sm:block pl-2">Due Date</div>
+                    <div className="w-8"></div>
+                </div>
+                {checklist.map((item, index) => (
+                    <div 
+                        key={item.id} 
+                        className={`group flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 bg-white border-b border-slate-100 last:border-0 transition-colors ${item.completed ? 'bg-slate-50' : ''}`}
+                    >
+                        <div className="flex items-center gap-3 flex-1 w-full">
+                             <button 
+                                onClick={() => handleToggleTask(item.id)}
+                                className={`flex-shrink-0 transition-colors ${item.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-400'}`}
+                            >
+                                {item.completed ? <CheckSquare size={20} /> : <Square size={20} />}
+                            </button>
+                            
+                            <input
+                                type="text"
+                                value={item.text}
+                                onChange={(e) => handleUpdateTask(item.id, 'text', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, item.id)}
+                                placeholder={index === 0 ? "What task are you working on?" : "Task description..."}
+                                className={`flex-1 bg-transparent border-none p-0 text-sm focus:ring-0 placeholder:text-slate-400 ${item.completed ? 'text-slate-400 line-through' : 'text-slate-700 font-medium'}`}
+                                autoFocus={index === checklist.length - 1 && index > 0}
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2 pl-8 sm:pl-0 w-full sm:w-auto justify-between sm:justify-end">
+                            {/* Percentage Input */}
+                            <div className="relative w-20 flex items-center">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={item.percentage}
+                                    onChange={(e) => {
+                                        let val = parseInt(e.target.value);
+                                        if (isNaN(val)) val = 0;
+                                        if (val > 100) val = 100;
+                                        handleUpdateTask(item.id, 'percentage', val);
+                                    }}
+                                    className={`w-full text-right pr-6 py-1 rounded border text-xs font-bold ${item.percentage === 100 ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-slate-600 border-slate-200 focus:border-blue-500'}`}
+                                    placeholder="0"
+                                />
+                                <span className="absolute right-2 text-slate-400 text-[10px] pointer-events-none">%</span>
+                            </div>
+
+                            {/* Due Date Input */}
+                            <div className="relative w-32">
+                                <input
+                                    type="date"
+                                    value={item.dueDate}
+                                    onChange={(e) => handleUpdateTask(item.id, 'dueDate', e.target.value)}
+                                    className={`w-full py-1 px-2 rounded border text-xs font-medium ${item.dueDate ? 'text-slate-700 border-slate-200' : 'text-slate-400 border-slate-200'}`}
+                                />
+                            </div>
+
+                            <button 
+                                onClick={() => handleRemoveTask(item.id)}
+                                className="text-slate-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                                title="Remove item"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                
+                {/* Empty State / Add Prompt */}
+                {checklist.length === 0 && (
+                     <button onClick={handleAddTask} className="w-full py-4 text-sm text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 transition-colors flex items-center justify-center gap-2 font-medium border-dashed border-2 border-transparent hover:border-blue-200">
+                        <Plus size={16} /> Add your first task
+                     </button>
+                )}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2 text-right">Tip: Setting progress to 100% automatically checks the task.</p>
         </div>
 
         {/* Blockers */}
