@@ -1,17 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered } from 'lucide-react';
 import { 
-  BarChart, 
-  Bar, 
+  LineChart, 
   Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
-  Legend, 
-  ComposedChart 
+  Legend
 } from 'recharts';
 import { StatusBadge } from '../components/StatusBadge';
 import { DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate, Milestone, MilestoneStatus } from '../types';
@@ -38,12 +36,15 @@ export const ProjectDetail: React.FC = () => {
   
   // Daily Log Modal
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-  const [logStatus, setLogStatus] = useState('');
+  const [logStatus, setLogStatus] = useState('On Track');
   const [logProgress, setLogProgress] = useState('');
   const [logBlockers, setLogBlockers] = useState('');
   const [logHelpNeeded, setLogHelpNeeded] = useState(false);
   const [generatedLog, setGeneratedLog] = useState<DailyLog | null>(null);
   const [generatingLog, setGeneratingLog] = useState(false);
+
+  // Refs for Text Manipulation
+  const logAchievementsRef = useRef<HTMLTextAreaElement>(null);
 
   // Weekly Report Modal
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -59,8 +60,119 @@ export const ProjectDetail: React.FC = () => {
   const [riskAnalysis, setRiskAnalysis] = useState<RiskAnalysis | null>(null);
   const [analyzingRisk, setAnalyzingRisk] = useState(false);
 
-  // Mock Chart Data State
+  // Chart Data State
   const [chartData, setChartData] = useState<any[]>([]);
+
+  // Helper to generate S-Curve data
+  const generateProgressData = (proj: any) => {
+    if (!proj || !proj.start_date || !proj.end_date) return [];
+
+    const start = new Date(proj.start_date);
+    const end = new Date(proj.end_date);
+    const today = new Date();
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+
+    const durationMs = end.getTime() - start.getTime();
+    const weeks = Math.ceil(durationMs / (1000 * 60 * 60 * 24 * 7));
+    // Limit points to avoid chart overcrowding if project is very long
+    const totalPoints = Math.max(2, Math.min(weeks, 20)); 
+    const interval = durationMs / (totalPoints - 1);
+
+    const data = [];
+    const currentProgress = proj.progress || 0;
+
+    for (let i = 0; i < totalPoints; i++) {
+        const pointDate = new Date(start.getTime() + i * interval);
+        const progressRatio = i / (totalPoints - 1); // 0 to 1
+        
+        // S-Curve Formula for Planned: Using a sigmoid-like approximation
+        // f(x) = x < 0.5 ? 2*x*x : -1+(4-2*x)*x  (Ease-in-out quadratic)
+        const plannedRatio = progressRatio < 0.5 ? 2 * progressRatio * progressRatio : -1 + (4 - 2 * progressRatio) * progressRatio;
+        const planned = Math.round(plannedRatio * 100);
+
+        let actual = null;
+        if (pointDate <= today) {
+             // Mock Actual: Interpolate to current real progress but simulate "weekly" reality
+             const timeRatio = Math.min(1, (pointDate.getTime() - start.getTime()) / (today.getTime() - start.getTime()));
+             
+             if (i === 0) {
+                 actual = 0;
+             } else if (i === totalPoints - 1 && pointDate <= today) {
+                 actual = currentProgress;
+             } else {
+                 // Interpolate towards current progress
+                 const baseActual = currentProgress * timeRatio;
+                 // Add variance for realism
+                 const variance = (Math.random() * 6 - 3); 
+                 actual = Math.max(0, Math.min(100, Math.round(baseActual + variance)));
+             }
+        }
+        
+        // If it's the last point and in the past, force it to match current progress exactly
+        if (i === totalPoints -1 && pointDate <= today) {
+            actual = currentProgress;
+        }
+
+        data.push({
+            name: pointDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            planned,
+            actual,
+            fullDate: pointDate.toLocaleDateString()
+        });
+    }
+    return data;
+  };
+
+  // Text Formatting Helper
+  const insertLogFormat = (type: 'bold' | 'italic' | 'underline' | 'bullet' | 'number') => {
+    const textarea = logAchievementsRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+    
+    let newText = '';
+    let newCursorPos = start;
+
+    switch (type) {
+      case 'bold':
+        newText = text.substring(0, start) + `**${selectedText}**` + text.substring(end);
+        newCursorPos = end + 4;
+        if (selectedText.length === 0) newCursorPos = start + 2;
+        break;
+      case 'italic':
+        newText = text.substring(0, start) + `*${selectedText}*` + text.substring(end);
+        newCursorPos = end + 2;
+        if (selectedText.length === 0) newCursorPos = start + 1;
+        break;
+      case 'underline':
+        newText = text.substring(0, start) + `__${selectedText}__` + text.substring(end);
+        newCursorPos = end + 4;
+        if (selectedText.length === 0) newCursorPos = start + 2;
+        break;
+      case 'bullet':
+        const prefix = (start > 0 && text[start - 1] !== '\n') ? '\n• ' : '• ';
+        newText = text.substring(0, start) + prefix + text.substring(end);
+        newCursorPos = start + prefix.length;
+        break;
+      case 'number':
+        const numPrefix = (start > 0 && text[start - 1] !== '\n') ? '\n1. ' : '1. ';
+        newText = text.substring(0, start) + numPrefix + text.substring(end);
+        newCursorPos = start + numPrefix.length;
+        break;
+    }
+
+    setLogProgress(newText);
+    
+    setTimeout(() => {
+        textarea.focus();
+        textarea.selectionStart = newCursorPos;
+        textarea.selectionEnd = newCursorPos;
+    }, 0);
+  };
 
   // Fetch Data from Supabase
   const fetchData = async () => {
@@ -108,27 +220,9 @@ export const ProjectDetail: React.FC = () => {
           if (weeklyError) console.warn('Error fetching weekly reports', weeklyError);
           setWeeklyReports(weeklyData || []);
 
-          // 5. Generate Mock Chart Data
-          // Use dynamic dates (last 7 days) instead of hardcoded values
-          const getLast7Days = () => {
-            const dates = [];
-            for (let i = 6; i >= 0; i--) {
-              const d = new Date();
-              d.setDate(d.getDate() - i);
-              dates.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-            }
-            return dates;
-          };
-          
-          const days = getLast7Days();
-          const mockData = days.map((d) => {
-              const baseValue = 2000;
-              const planned = Math.floor(Math.random() * 2500) + 1500;
-              const actual = Math.floor(Math.random() * 2500) + 1500;
-              const trend = (planned + actual) / 2 + 500; 
-              return { name: d, planned, actual, trend };
-          });
-          setChartData(mockData);
+          // 5. Generate Chart Data
+          const chartData = generateProgressData(projectData);
+          setChartData(chartData);
 
       } catch (err: any) {
           console.error('Error loading project:', err);
@@ -195,7 +289,7 @@ export const ProjectDetail: React.FC = () => {
   const closeLogModal = () => {
       setIsLogModalOpen(false);
       setGeneratedLog(null);
-      setLogStatus('');
+      setLogStatus('On Track');
       setLogProgress('');
       setLogBlockers('');
       setLogHelpNeeded(false);
@@ -432,77 +526,71 @@ export const ProjectDetail: React.FC = () => {
       {/* EXECUTIVE ANALYTICS SECTION */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Main Chart Card */}
-          <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
-              {/* Custom Header Matching Design */}
-              <div className="flex flex-col gap-6 mb-6">
-                <div className="flex items-center gap-6 border-b border-slate-100 pb-1">
-                    <button className="text-sm font-bold text-blue-600 border-b-2 border-blue-600 pb-3 px-1 transition-all">Labor costs</button>
-                    <button className="text-sm font-medium text-slate-400 pb-3 px-1 hover:text-slate-600 transition-colors">Time</button>
-                    <button className="text-sm font-medium text-slate-400 pb-3 px-1 hover:text-slate-600 transition-colors">Scheduling</button>
-                </div>
-                <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Planned vs. Actual</h3>
-                    <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
-                        <button className="hover:text-slate-900 transition-colors">Month</button>
-                        <button className="hover:text-slate-900 transition-colors">Year</button>
-                        <button className="px-3 py-1.5 bg-rose-50 text-rose-600 rounded-full border border-rose-100 font-bold shadow-sm">This week</button>
-                    </div>
-                </div>
+          <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[450px]">
+              {/* Header */}
+              <div className="flex items-center gap-6 border-b border-slate-100 pb-1 mb-6">
+                  <button className="text-sm font-bold text-slate-900 border-b-2 border-slate-900 pb-3 px-1 transition-all">Weekly Progress</button>
+                  <button className="text-sm font-medium text-slate-400 pb-3 px-1 hover:text-slate-600 transition-colors">Burn-down</button>
               </div>
 
-              <div className="flex-1 h-80 min-h-[300px] w-full">
+              {/* Title & Filters */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                  <div className="w-full text-center">
+                      <h3 className="text-lg font-bold text-slate-700 tracking-tight mb-2">Planned vs Actual</h3>
+                  </div>
+              </div>
+
+              {/* Chart */}
+              <div className="flex-1 w-full min-h-0">
                   <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData} barGap={8}>
+                      <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis 
                             dataKey="name" 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                            tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
                             dy={10}
                           />
                           <YAxis 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{ fill: '#94a3b8', fontSize: 12 }}
-                            tickFormatter={(value) => `${value / 1000}k`}
+                            tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
+                            domain={[0, 100]}
+                            ticks={[0, 20, 40, 60, 80, 100]}
+                            tickFormatter={(v) => `${v}`}
                           />
                           <Tooltip 
-                            cursor={{ fill: '#f8fafc' }}
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                            cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+                            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '5px', fontSize: '12px' }}
+                            itemStyle={{ fontSize: '12px', padding: 0 }}
                           />
                           <Legend 
-                             verticalAlign="top" 
-                             align="left" 
-                             iconType="circle"
-                             wrapperStyle={{ paddingBottom: '20px', paddingLeft: '0px', fontSize: '13px', fontWeight: 500 }} 
+                             verticalAlign="bottom" 
+                             align="center" 
+                             wrapperStyle={{ paddingTop: '20px', fontSize: '13px', fontWeight: 500 }} 
                           />
+                          
                           <Line 
                               type="monotone" 
-                              dataKey="trend" 
-                              stroke="#fbbf24" 
-                              strokeWidth={2} 
-                              strokeDasharray="4 4" 
+                              dataKey="actual" 
+                              name="Actual"
+                              stroke="#3b82f6" 
+                              strokeWidth={3}
                               dot={false}
-                              name="Projected Trend"
-                              legendType="none"
+                              activeDot={{ r: 6, strokeWidth: 0 }}
+                          />
+                           <Line 
+                              type="monotone" 
+                              dataKey="planned" 
+                              name="Planned"
+                              stroke="#f97316" 
+                              strokeWidth={3} 
+                              dot={false}
                               activeDot={false}
                           />
-                          <Bar 
-                            dataKey="planned" 
-                            name="Planned" 
-                            fill="#facc15" 
-                            radius={[4, 4, 0, 0]} 
-                            barSize={12}
-                          />
-                          <Bar 
-                            dataKey="actual" 
-                            name="Actual" 
-                            fill="#6366f1" 
-                            radius={[4, 4, 0, 0]} 
-                            barSize={12}
-                          />
-                      </ComposedChart>
+                      </LineChart>
                   </ResponsiveContainer>
               </div>
           </div>
@@ -762,41 +850,106 @@ export const ProjectDetail: React.FC = () => {
                   
                   <div className="p-8 space-y-6">
                       {!generatedLog ? (
-                          <form onSubmit={handleGenerateLog} className="space-y-5">
-                              {/* ... (Existing Daily Log Form) ... */}
-                              <div className="grid grid-cols-2 gap-6">
-                                  <div>
-                                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Status Today</label>
+                          <form onSubmit={handleGenerateLog} className="space-y-6">
+                              {/* Status */}
+                              <div>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status Today</label>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                      {['On Track', 'At Risk', 'Delayed', 'Completed'].map((s) => (
+                                          <button
+                                              key={s}
+                                              type="button"
+                                              onClick={() => setLogStatus(s)}
+                                              className={`py-2.5 px-3 rounded-lg text-sm font-bold border transition-all shadow-sm ${
+                                                  logStatus === s 
+                                                      ? s === 'On Track' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-1 ring-emerald-500'
+                                                      : s === 'At Risk' ? 'bg-amber-50 border-amber-500 text-amber-700 ring-1 ring-amber-500'
+                                                      : s === 'Delayed' ? 'bg-red-50 border-red-500 text-red-700 ring-1 ring-red-500'
+                                                      : 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500'
+                                                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                                              }`}
+                                          >
+                                              {s}
+                                          </button>
+                                      ))}
+                                  </div>
+                              </div>
+                              
+                              {/* Escalation Checkbox */}
+                              <div>
+                                  <label className={`flex items-center px-4 py-3 rounded-lg border cursor-pointer transition-all ${logHelpNeeded ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
                                       <input 
-                                          type="text" 
-                                          required
-                                          className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2.5 text-sm transition-shadow"
-                                          placeholder="e.g., Progressing slow"
-                                          value={logStatus}
-                                          onChange={e => setLogStatus(e.target.value)}
+                                          type="checkbox" 
+                                          className="rounded border-slate-300 text-red-600 shadow-sm focus:ring-red-500 h-4 w-4"
+                                          checked={logHelpNeeded}
+                                          onChange={e => setLogHelpNeeded(e.target.checked)}
+                                      />
+                                      <span className={`ml-3 text-sm font-bold ${logHelpNeeded ? 'text-red-700' : 'text-slate-600'}`}>Escalation Required (Require Help)</span>
+                                  </label>
+                              </div>
+
+                              {/* Progress Notes with Toolbar */}
+                              <div>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Progress Notes <span className="text-red-500">*</span></label>
+                                  <div className="border border-slate-300 rounded-lg shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all bg-white">
+                                      {/* Toolbar */}
+                                      <div className="bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1 select-none">
+                                          <button 
+                                              type="button" onClick={() => insertLogFormat('bold')} 
+                                              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Bold"
+                                          >
+                                              <Bold size={16} />
+                                          </button>
+                                          <button 
+                                              type="button" onClick={() => insertLogFormat('italic')} 
+                                              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Italic"
+                                          >
+                                              <Italic size={16} />
+                                          </button>
+                                          <button 
+                                              type="button" onClick={() => insertLogFormat('underline')} 
+                                              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Underline"
+                                          >
+                                              <Underline size={16} />
+                                          </button>
+                                          <div className="w-px h-5 bg-slate-200 mx-2"></div>
+                                          <button 
+                                              type="button" onClick={() => insertLogFormat('bullet')} 
+                                              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Bullet List"
+                                          >
+                                              <List size={16} />
+                                          </button>
+                                          <button 
+                                              type="button" onClick={() => insertLogFormat('number')} 
+                                              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors" title="Numbered List"
+                                          >
+                                              <ListOrdered size={16} />
+                                          </button>
+                                      </div>
+                                      <textarea 
+                                          ref={logAchievementsRef}
+                                          required 
+                                          rows={4} 
+                                          className="w-full p-4 text-slate-800 border-none focus:ring-0 resize-none text-sm leading-relaxed" 
+                                          placeholder="What was achieved today? (Supports Markdown)" 
+                                          value={logProgress} 
+                                          onChange={e => setLogProgress(e.target.value)}
                                       />
                                   </div>
-                                  <div>
-                                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Escalation</label>
-                                      <label className={`flex items-center px-4 py-2 rounded-lg border cursor-pointer transition-all h-[42px] ${logHelpNeeded ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-white border-slate-300 hover:bg-slate-50'}`}>
-                                          <input 
-                                              type="checkbox" 
-                                              className="rounded border-slate-300 text-red-600 shadow-sm focus:ring-red-500 h-4 w-4"
-                                              checked={logHelpNeeded}
-                                              onChange={e => setLogHelpNeeded(e.target.checked)}
-                                          />
-                                          <span className={`ml-2 text-sm font-semibold ${logHelpNeeded ? 'text-red-700' : 'text-slate-600'}`}>Require Help</span>
-                                      </label>
-                                  </div>
                               </div>
+
+                              {/* Blockers */}
                               <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Progress Notes</label>
-                                  <textarea required rows={4} className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm transition-shadow" placeholder="What was achieved today?" value={logProgress} onChange={e => setLogProgress(e.target.value)}></textarea>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1"><AlertCircle size={12} /> Blockers / Risks</label>
+                                  <textarea 
+                                      rows={2} 
+                                      className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm transition-shadow" 
+                                      placeholder="Any blockers?" 
+                                      value={logBlockers} 
+                                      onChange={e => setLogBlockers(e.target.value)}
+                                  />
                               </div>
-                              <div>
-                                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Blockers</label>
-                                  <textarea rows={2} className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm transition-shadow" placeholder="Any blockers?" value={logBlockers} onChange={e => setLogBlockers(e.target.value)}></textarea>
-                              </div>
+
                               <div className="pt-2">
                                   <button type="submit" disabled={generatingLog} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
                                       {generatingLog ? <Loader2 className="animate-spin" size={20} /> : <Bot size={20} />} Generate Structured Log
@@ -815,97 +968,6 @@ export const ProjectDetail: React.FC = () => {
                               </div>
                           </div>
                       )}
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* Weekly Report Modal */}
-      {isReportModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200 border border-slate-200">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-violet-50">
-                      <h3 className="text-lg font-bold text-violet-900 flex items-center gap-2">
-                          <ClipboardList className="text-violet-600" size={24} />
-                          Weekly Progress Report
-                      </h3>
-                      <button onClick={() => setIsReportModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded-full">
-                          <X size={20} />
-                      </button>
-                  </div>
-                  
-                  <div className="p-8 space-y-6">
-                      {generatingReport ? (
-                          <div className="flex flex-col items-center justify-center py-10">
-                              <Loader2 className="animate-spin text-violet-600 mb-4" size={40} />
-                              <p className="text-slate-600 font-medium">Synthesizing daily logs...</p>
-                              <p className="text-slate-400 text-sm">Analyzing last 7 days of activity</p>
-                          </div>
-                      ) : reportData ? (
-                          <div className="space-y-5">
-                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Week Ending</label>
-                                    <input 
-                                        type="date" 
-                                        value={reportData.week_ending}
-                                        onChange={(e) => setReportData({...reportData, week_ending: e.target.value})}
-                                        className="w-full rounded-lg border-slate-300 text-sm p-2.5"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Overall Status</label>
-                                    <select 
-                                        value={reportData.rag_status}
-                                        onChange={(e) => setReportData({...reportData, rag_status: e.target.value})}
-                                        className="w-full rounded-lg border-slate-300 text-sm p-2.5"
-                                    >
-                                        <option value="On Track">On Track</option>
-                                        <option value="At Risk">At Risk</option>
-                                        <option value="Delayed">Delayed</option>
-                                        <option value="Completed">Completed</option>
-                                    </select>
-                                </div>
-                             </div>
-
-                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Executive Summary (Achievements)</label>
-                                <textarea 
-                                    rows={4}
-                                    value={reportData.summary_text}
-                                    onChange={(e) => setReportData({...reportData, summary_text: e.target.value})}
-                                    className="w-full rounded-lg border-slate-300 text-sm p-3 focus:ring-violet-500 focus:border-violet-500"
-                                />
-                             </div>
-
-                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Risks & Blockers</label>
-                                <textarea 
-                                    rows={2}
-                                    value={reportData.risks_blockers}
-                                    onChange={(e) => setReportData({...reportData, risks_blockers: e.target.value})}
-                                    className="w-full rounded-lg border-slate-300 text-sm p-3 focus:ring-violet-500 focus:border-violet-500"
-                                />
-                             </div>
-
-                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Next Steps</label>
-                                <textarea 
-                                    rows={2}
-                                    value={reportData.next_steps}
-                                    onChange={(e) => setReportData({...reportData, next_steps: e.target.value})}
-                                    className="w-full rounded-lg border-slate-300 text-sm p-3 focus:ring-violet-500 focus:border-violet-500"
-                                />
-                             </div>
-
-                             <div className="pt-4 flex gap-4">
-                                <button onClick={() => setIsReportModalOpen(false)} className="flex-1 py-3 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50">Discard</button>
-                                <button onClick={handleSaveReport} className="flex-1 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-bold shadow-md flex items-center justify-center gap-2">
-                                    <Check size={18} /> Publish Report
-                                </button>
-                             </div>
-                          </div>
-                      ) : null}
                   </div>
               </div>
           </div>
