@@ -74,7 +74,25 @@ export const EditProject: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+
+    setFormData(prev => {
+        const newData = { ...prev, [name]: value };
+        
+        // Smart Date Validation
+        if (name === 'start_date') {
+            if (newData.end_date && value > newData.end_date) {
+                newData.end_date = value;
+            }
+        }
+        
+        if (name === 'end_date') {
+            if (newData.start_date && value < newData.start_date) {
+                newData.start_date = value;
+            }
+        }
+
+        return newData;
+    });
   };
 
   const handleToggleActive = (isActive: boolean) => {
@@ -144,23 +162,23 @@ export const EditProject: React.FC = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="max-w-3xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20">
       
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white border border-slate-200 text-slate-700 rounded-xl flex items-center justify-center shadow-sm">
-                <LayoutDashboard size={24} />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-white border border-slate-200 text-slate-700 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 transition-all">
+                <LayoutDashboard size={20} className="md:w-6 md:h-6" />
             </div>
             <div>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Edit Project</h1>
-                <p className="text-slate-500 text-sm">Update configuration for {formData.project_name}.</p>
+                <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">Edit Project</h1>
+                <p className="text-slate-500 text-xs md:text-sm">Update configuration for {formData.project_name}.</p>
             </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
             <button 
                 type="button"
                 onClick={() => navigate(`/projects/${id}`)}
-                className="flex items-center gap-2 px-4 py-2 text-slate-600 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors font-bold text-sm shadow-sm"
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 text-slate-600 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors font-bold text-sm shadow-sm whitespace-nowrap"
             >
                 <Eye size={16} />
                 View Details
@@ -168,7 +186,7 @@ export const EditProject: React.FC = () => {
             <button 
                 type="button"
                 onClick={handleDelete}
-                className="flex items-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors font-bold text-sm shadow-sm"
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors font-bold text-sm shadow-sm whitespace-nowrap"
             >
                 <Trash2 size={16} />
                 Delete
@@ -176,7 +194,7 @@ export const EditProject: React.FC = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
+      <form onSubmit={handleSubmit} className="bg-white p-4 md:p-8 rounded-xl border border-slate-200 shadow-sm space-y-6 md:space-y-8">
         
         {errorMsg && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm font-medium">
@@ -207,12 +225,12 @@ export const EditProject: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Type */}
             <div>
-                 <div className="flex justify-between items-center mb-2">
+                 <div className="flex flex-wrap justify-between items-center mb-2 gap-2">
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Project Type</label>
                     <button 
                         type="button" 
                         onClick={() => setIsTypeManagerOpen(true)}
-                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors"
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors whitespace-nowrap"
                     >
                         <Settings size={10} /> Manage Types
                     </button>
@@ -238,7 +256,7 @@ export const EditProject: React.FC = () => {
 
             {/* Owner */}
             <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Owner / PM</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-1 md:mt-0">Owner / PM</label>
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
                         <User size={18} />
@@ -268,7 +286,8 @@ export const EditProject: React.FC = () => {
                         required
                         value={formData.start_date}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
+                        onClick={(e) => (e.target as any).showPicker?.()}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all cursor-pointer appearance-none"
                     />
                 </div>
             </div>
@@ -284,9 +303,11 @@ export const EditProject: React.FC = () => {
                         type="date"
                         name="end_date"
                         required
+                        min={formData.start_date}
                         value={formData.end_date}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
+                        onClick={(e) => (e.target as any).showPicker?.()}
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all cursor-pointer appearance-none"
                     />
                 </div>
             </div>
@@ -323,9 +344,9 @@ export const EditProject: React.FC = () => {
         </div>
 
         {/* Active Status Toggle */}
-        <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
+        <div className="p-4 md:p-5 bg-slate-50 rounded-xl border border-slate-200">
             <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Lifecycle Status</span>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
                 <button
                     type="button"
                     onClick={() => handleToggleActive(true)}
@@ -345,18 +366,18 @@ export const EditProject: React.FC = () => {
             </div>
         </div>
 
-        <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">
+        <div className="pt-6 border-t border-slate-100 flex flex-col-reverse md:flex-row justify-end gap-3">
              <button
                 type="button"
                 onClick={() => navigate('/dashboard')}
-                className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-bold text-sm"
+                className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-bold text-sm w-full md:w-auto"
             >
                 Cancel
             </button>
             <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 text-sm"
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 text-sm w-full md:w-auto"
             >
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                 Save Changes

@@ -66,63 +66,76 @@ export const ProjectDetail: React.FC = () => {
 
   // Helper to generate S-Curve data
   const generateProgressData = (proj: any) => {
-    if (!proj || !proj.start_date || !proj.end_date) return [];
+    try {
+        if (!proj || !proj.start_date || !proj.end_date) return [];
 
-    const start = new Date(proj.start_date);
-    const end = new Date(proj.end_date);
-    const today = new Date();
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
-
-    const durationMs = end.getTime() - start.getTime();
-    const weeks = Math.ceil(durationMs / (1000 * 60 * 60 * 24 * 7));
-    // Limit points to avoid chart overcrowding if project is very long
-    const totalPoints = Math.max(2, Math.min(weeks, 20)); 
-    const interval = durationMs / (totalPoints - 1);
-
-    const data = [];
-    const currentProgress = proj.progress || 0;
-
-    for (let i = 0; i < totalPoints; i++) {
-        const pointDate = new Date(start.getTime() + i * interval);
-        const progressRatio = i / (totalPoints - 1); // 0 to 1
+        const start = new Date(proj.start_date);
+        const end = new Date(proj.end_date);
+        const today = new Date();
         
-        // S-Curve Formula for Planned: Using a sigmoid-like approximation
-        // f(x) = x < 0.5 ? 2*x*x : -1+(4-2*x)*x  (Ease-in-out quadratic)
-        const plannedRatio = progressRatio < 0.5 ? 2 * progressRatio * progressRatio : -1 + (4 - 2 * progressRatio) * progressRatio;
-        const planned = Math.round(plannedRatio * 100);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+        if (start.getTime() > end.getTime()) return []; // Invalid range
 
-        let actual = null;
-        if (pointDate <= today) {
-             // Mock Actual: Interpolate to current real progress but simulate "weekly" reality
-             const timeRatio = Math.min(1, (pointDate.getTime() - start.getTime()) / (today.getTime() - start.getTime()));
-             
-             if (i === 0) {
-                 actual = 0;
-             } else if (i === totalPoints - 1 && pointDate <= today) {
-                 actual = currentProgress;
-             } else {
-                 // Interpolate towards current progress
-                 const baseActual = currentProgress * timeRatio;
-                 // Add variance for realism
-                 const variance = (Math.random() * 6 - 3); 
-                 actual = Math.max(0, Math.min(100, Math.round(baseActual + variance)));
-             }
-        }
-        
-        // If it's the last point and in the past, force it to match current progress exactly
-        if (i === totalPoints -1 && pointDate <= today) {
-            actual = currentProgress;
-        }
+        const durationMs = end.getTime() - start.getTime();
+        // Avoid division by zero or negative duration
+        if (durationMs <= 0) return [];
 
-        data.push({
-            name: pointDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            planned,
-            actual,
-            fullDate: pointDate.toLocaleDateString()
-        });
+        const weeks = Math.ceil(durationMs / (1000 * 60 * 60 * 24 * 7));
+        // Limit points to avoid chart overcrowding if project is very long
+        const totalPoints = Math.max(2, Math.min(weeks, 20)); 
+        const interval = durationMs / (totalPoints - 1);
+
+        const data = [];
+        const currentProgress = proj.progress || 0;
+
+        for (let i = 0; i < totalPoints; i++) {
+            const pointDate = new Date(start.getTime() + i * interval);
+            
+            // Check for valid date
+            if (isNaN(pointDate.getTime())) continue;
+
+            const progressRatio = i / (totalPoints - 1); // 0 to 1
+            
+            // S-Curve Formula for Planned: Using a sigmoid-like approximation
+            // f(x) = x < 0.5 ? 2*x*x : -1+(4-2*x)*x  (Ease-in-out quadratic)
+            const plannedRatio = progressRatio < 0.5 ? 2 * progressRatio * progressRatio : -1 + (4 - 2 * progressRatio) * progressRatio;
+            const planned = Math.round(plannedRatio * 100);
+
+            let actual = null;
+            if (pointDate <= today) {
+                // Mock Actual: Interpolate to current real progress but simulate "weekly" reality
+                const timeRatio = Math.min(1, (pointDate.getTime() - start.getTime()) / (today.getTime() - start.getTime()));
+                
+                if (i === 0) {
+                    actual = 0;
+                } else if (i === totalPoints - 1 && pointDate <= today) {
+                    actual = currentProgress;
+                } else {
+                    // Interpolate towards current progress
+                    const baseActual = currentProgress * timeRatio;
+                    // Add variance for realism
+                    const variance = (Math.random() * 6 - 3); 
+                    actual = Math.max(0, Math.min(100, Math.round(baseActual + variance)));
+                }
+            }
+            
+            // If it's the last point and in the past, force it to match current progress exactly
+            if (i === totalPoints -1 && pointDate <= today) {
+                actual = currentProgress;
+            }
+
+            data.push({
+                name: pointDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                planned,
+                actual,
+                fullDate: pointDate.toLocaleDateString()
+            });
+        }
+        return data;
+    } catch (e) {
+        console.error("Error generating chart data", e);
+        return [];
     }
-    return data;
   };
 
   // Text Formatting Helper
@@ -391,78 +404,90 @@ export const ProjectDetail: React.FC = () => {
 
   // Timeline Helper
   const renderTimeline = () => {
-      const startDate = new Date(project.start_date);
-      const endDate = new Date(project.end_date);
-      const today = new Date();
-      const timelineStart = new Date(startDate);
-      timelineStart.setDate(timelineStart.getDate() - 7);
-      const timelineEnd = new Date(endDate);
-      timelineEnd.setDate(timelineEnd.getDate() + 14);
-      const totalDuration = timelineEnd.getTime() - timelineStart.getTime();
-      const getPos = (d: string | Date) => {
-          const date = new Date(d);
-          const diff = date.getTime() - timelineStart.getTime();
-          return Math.max(0, Math.min(100, (diff / totalDuration) * 100));
-      };
-      const projectStartPos = getPos(project.start_date);
-      const projectEndPos = getPos(project.end_date);
-      const projectWidth = projectEndPos - projectStartPos;
-      const todayPos = getPos(today);
-      let barColor = 'bg-blue-600';
-      if (currentStatus === 'At Risk') barColor = 'bg-amber-500';
-      if (currentStatus === 'Delayed') barColor = 'bg-red-500';
-      if (currentStatus === 'Completed') barColor = 'bg-emerald-500';
+      try {
+        const startDate = new Date(project.start_date);
+        const endDate = new Date(project.end_date);
+        
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return null;
 
-      return (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
-             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                    <Calendar size={16} className="text-slate-500" />
-                    Project Timeline
-                </h3>
-            </div>
-            <div className="p-6 overflow-x-auto">
-                <div className="min-w-[600px] relative">
-                    <div className="flex justify-between text-xs text-slate-400 font-mono mb-2 border-b border-slate-100 pb-2">
-                        <span>{timelineStart.toLocaleDateString()}</span>
-                        <span>{timelineEnd.toLocaleDateString()}</span>
-                    </div>
-                    <div className="absolute top-8 bottom-0 w-px bg-red-500 z-20 shadow-[0_0_8px_rgba(239,68,68,0.4)]" style={{ left: `${todayPos}%` }}>
-                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full"></div>
-                        <div className="absolute -top-6 -left-4 text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">TODAY</div>
-                    </div>
-                    <div className="relative h-12 flex items-center mb-2 group">
-                        <div className="w-1/4 min-w-[150px] pr-4 text-sm font-bold text-slate-700 truncate border-r border-slate-100 mr-4 flex items-center gap-2">Project Schedule</div>
-                        <div className="flex-1 relative h-full flex items-center">
-                            <div 
-                                className={`h-4 rounded-full ${barColor} shadow-sm relative group-hover:h-5 transition-all duration-300`}
-                                style={{ left: `${projectStartPos}%`, width: `${projectWidth}%` }}
-                            ></div>
+        const today = new Date();
+        const timelineStart = new Date(startDate);
+        timelineStart.setDate(timelineStart.getDate() - 7);
+        const timelineEnd = new Date(endDate);
+        timelineEnd.setDate(timelineEnd.getDate() + 14);
+        
+        const totalDuration = timelineEnd.getTime() - timelineStart.getTime();
+        if (totalDuration <= 0) return null;
+
+        const getPos = (d: string | Date) => {
+            const date = new Date(d);
+            if (isNaN(date.getTime())) return 0;
+            const diff = date.getTime() - timelineStart.getTime();
+            return Math.max(0, Math.min(100, (diff / totalDuration) * 100));
+        };
+        const projectStartPos = getPos(project.start_date);
+        const projectEndPos = getPos(project.end_date);
+        const projectWidth = projectEndPos - projectStartPos;
+        const todayPos = getPos(today);
+        let barColor = 'bg-blue-600';
+        if (currentStatus === 'At Risk') barColor = 'bg-amber-500';
+        if (currentStatus === 'Delayed') barColor = 'bg-red-500';
+        if (currentStatus === 'Completed') barColor = 'bg-emerald-500';
+
+        return (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <Calendar size={16} className="text-slate-500" />
+                        Project Timeline
+                    </h3>
+                </div>
+                <div className="p-6 overflow-x-auto">
+                    <div className="min-w-[600px] relative">
+                        <div className="flex justify-between text-xs text-slate-400 font-mono mb-2 border-b border-slate-100 pb-2">
+                            <span>{timelineStart.toLocaleDateString()}</span>
+                            <span>{timelineEnd.toLocaleDateString()}</span>
                         </div>
-                    </div>
-                    {milestones.length > 0 ? (
-                        milestones.map((ms) => {
-                            const msPos = getPos(ms.due_date);
-                            const isPast = new Date(ms.due_date) < today;
-                            return (
-                                <div key={ms.id} className="relative h-10 flex items-center group">
-                                    <div className="w-1/4 min-w-[150px] pr-4 text-xs font-medium text-slate-600 truncate border-r border-slate-100 mr-4 pl-4 flex items-center gap-2">
-                                        {ms.status === MilestoneStatus.COMPLETED ? <Check size={12} className="text-emerald-500" /> : <div className="w-3" />}
-                                        {ms.name}
-                                    </div>
-                                    <div className="flex-1 relative h-full flex items-center">
-                                        <div className="absolute transform -translate-x-1/2 flex flex-col items-center cursor-pointer group-hover:z-10" style={{ left: `${msPos}%` }}>
-                                            <Diamond size={14} className={`fill-current ${ms.status === MilestoneStatus.COMPLETED ? 'text-emerald-500' : isPast ? 'text-red-400' : 'text-purple-500'} mb-1`} />
+                        <div className="absolute top-8 bottom-0 w-px bg-red-500 z-20 shadow-[0_0_8px_rgba(239,68,68,0.4)]" style={{ left: `${todayPos}%` }}>
+                            <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                            <div className="absolute -top-6 -left-4 text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">TODAY</div>
+                        </div>
+                        <div className="relative h-12 flex items-center mb-2 group">
+                            <div className="w-1/4 min-w-[150px] pr-4 text-sm font-bold text-slate-700 truncate border-r border-slate-100 mr-4 flex items-center gap-2">Project Schedule</div>
+                            <div className="flex-1 relative h-full flex items-center">
+                                <div 
+                                    className={`h-4 rounded-full ${barColor} shadow-sm relative group-hover:h-5 transition-all duration-300`}
+                                    style={{ left: `${projectStartPos}%`, width: `${projectWidth}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                        {milestones.length > 0 ? (
+                            milestones.map((ms) => {
+                                const msPos = getPos(ms.due_date);
+                                const isPast = new Date(ms.due_date) < today;
+                                return (
+                                    <div key={ms.id} className="relative h-10 flex items-center group">
+                                        <div className="w-1/4 min-w-[150px] pr-4 text-xs font-medium text-slate-600 truncate border-r border-slate-100 mr-4 pl-4 flex items-center gap-2">
+                                            {ms.status === MilestoneStatus.COMPLETED ? <Check size={12} className="text-emerald-500" /> : <div className="w-3" />}
+                                            {ms.name}
+                                        </div>
+                                        <div className="flex-1 relative h-full flex items-center">
+                                            <div className="absolute transform -translate-x-1/2 flex flex-col items-center cursor-pointer group-hover:z-10" style={{ left: `${msPos}%` }}>
+                                                <Diamond size={14} className={`fill-current ${ms.status === MilestoneStatus.COMPLETED ? 'text-emerald-500' : isPast ? 'text-red-400' : 'text-purple-500'} mb-1`} />
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })
-                    ) : <div className="text-center text-xs text-slate-400 italic">No milestones defined.</div>}
+                                );
+                            })
+                        ) : <div className="text-center text-xs text-slate-400 italic">No milestones defined.</div>}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+      } catch (e) {
+          console.error("Timeline error", e);
+          return null;
+      }
   };
 
   return (

@@ -1,12 +1,36 @@
+
 import React from 'react';
 import { ProjectStatus } from '../types';
 
 interface Props {
-  status: ProjectStatus;
+  status: ProjectStatus | string;
   size?: 'sm' | 'md';
 }
 
 export const StatusBadge: React.FC<Props> = ({ status, size = 'md' }) => {
+  
+  // Normalize status to handle DB enums (ON_TRACK) vs Frontend enums (On Track)
+  const getNormalizedStatus = (s: string): ProjectStatus => {
+    if (!s) return ProjectStatus.ON_TRACK;
+    
+    // Exact match check first
+    if (Object.values(ProjectStatus).includes(s as ProjectStatus)) {
+        return s as ProjectStatus;
+    }
+
+    // Map DB Enum style (ON_TRACK) to Frontend Style (On Track)
+    const upper = s.toUpperCase();
+    if (upper === 'ON_TRACK') return ProjectStatus.ON_TRACK;
+    if (upper === 'AT_RISK') return ProjectStatus.AT_RISK;
+    if (upper === 'DELAYED') return ProjectStatus.DELAYED;
+    if (upper === 'COMPLETED') return ProjectStatus.COMPLETED;
+    if (upper === 'ON_HOLD') return ProjectStatus.ON_HOLD;
+
+    return ProjectStatus.ON_TRACK; // Default fallback
+  };
+
+  const safeStatus = getNormalizedStatus(status);
+
   const config = {
     [ProjectStatus.ON_TRACK]: {
       bg: 'bg-emerald-50',
@@ -45,14 +69,16 @@ export const StatusBadge: React.FC<Props> = ({ status, size = 'md' }) => {
     },
   };
 
-  const style = config[status];
+  // Safe access with fallback
+  const style = config[safeStatus] || config[ProjectStatus.ON_TRACK];
+  
   const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs';
   const dotSize = size === 'sm' ? 'w-1 h-1' : 'w-1.5 h-1.5';
 
   return (
-    <span className={`inline-flex items-center justify-center rounded-full font-semibold border ${style.bg} ${style.text} ${style.border} ${sizeClasses} shadow-sm`}>
+    <span className={`inline-flex items-center justify-center rounded-full font-semibold border ${style.bg} ${style.text} ${style.border} ${sizeClasses} shadow-sm whitespace-nowrap`}>
       <span className="relative flex h-2 w-2 mr-1.5 items-center justify-center">
-        {(status === ProjectStatus.DELAYED || status === ProjectStatus.AT_RISK) && (
+        {(safeStatus === ProjectStatus.DELAYED || safeStatus === ProjectStatus.AT_RISK) && (
              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${style.dot}`}></span>
         )}
         <span className={`relative inline-flex rounded-full ${dotSize} ${style.dot}`}></span>
