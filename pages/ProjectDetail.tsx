@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save, Repeat, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save, Repeat, ShieldCheck, Wrench, BarChart2 } from 'lucide-react';
 import { 
   LineChart, 
   Line, 
@@ -13,7 +13,7 @@ import {
   Legend
 } from 'recharts';
 import { StatusBadge } from '../components/StatusBadge';
-import { DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate, Milestone, MilestoneStatus, ProjectDailyUpdate } from '../types';
+import { DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate, Milestone, MilestoneStatus, ProjectDailyUpdate, MaLog } from '../types';
 import { generateExecutiveRiskAnalysis, generateDailyLog, analyzeRiskPattern, generateWeeklyReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 
@@ -25,21 +25,32 @@ export const ProjectDetail: React.FC = () => {
   const [dailyUpdates, setDailyUpdates] = useState<ProjectDailyUpdate[]>([]);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyUpdate[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [maLogs, setMaLogs] = useState<MaLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // UI State
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'ma'>('daily');
 
   // AI & Modal State
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   
-  // MA Modal State
+  // MA Modal State (Setup)
   const [showMaPrompt, setShowMaPrompt] = useState(false);
   const [isMaModalOpen, setIsMaModalOpen] = useState(false);
   const [maFormData, setMaFormData] = useState({ startDate: '', endDate: '' });
   const [isSavingMa, setIsSavingMa] = useState(false);
+
+  // MA Log Modal (Support Task)
+  const [isMaLogModalOpen, setIsMaLogModalOpen] = useState(false);
+  const [maLogData, setMaLogData] = useState({
+      service_date: new Date().toISOString().split('T')[0],
+      description: '',
+      hours_used: '',
+      category: 'Request'
+  });
+  const [isSavingMaLog, setIsSavingMaLog] = useState(false);
 
   // Daily Log Modal
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -262,8 +273,18 @@ export const ProjectDetail: React.FC = () => {
 
           if (weeklyError) console.warn('Error fetching weekly reports', weeklyError);
           setWeeklyReports(weeklyData || []);
+          
+          // 5. Fetch MA Logs if enabled
+          if (projectData.has_ma) {
+             const { data: maData } = await supabase
+                .from('ma_logs')
+                .select('*')
+                .eq('project_id', id)
+                .order('service_date', { ascending: false });
+             setMaLogs(maData || []);
+          }
 
-          // 5. Generate Chart Data
+          // 6. Generate Chart Data
           const chartData = generateProgressData(projectData);
           setChartData(chartData);
 
@@ -279,7 +300,7 @@ export const ProjectDetail: React.FC = () => {
       fetchData();
   }, [id]);
 
-  // Handle MA Save
+  // Handle MA Save (Enable MA)
   const handleSaveMa = async () => {
     if (!id) return;
     setIsSavingMa(true);
@@ -300,6 +321,49 @@ export const ProjectDetail: React.FC = () => {
     } finally {
         setIsSavingMa(false);
     }
+  };
+  
+  // Handle MA Log Entry
+  const handleSaveMaLog = async () => {
+      if (!id) return;
+      if (!maLogData.description || !maLogData.service_date) return;
+      
+      setIsSavingMaLog(true);
+      try {
+          const { error } = await supabase.from('ma_logs').insert([{
+              project_id: id,
+              service_date: maLogData.service_date,
+              description: maLogData.description,
+              hours_used: parseFloat(maLogData.hours_used) || 0,
+              category: maLogData.category
+          }]);
+          
+          if (error) throw error;
+          
+          // Refresh logs
+          const { data: maData } = await supabase
+            .from('ma_logs')
+            .select('*')
+            .eq('project_id', id)
+            .order('service_date', { ascending: false });
+          setMaLogs(maData || []);
+          
+          setIsMaLogModalOpen(false);
+          setMaLogData({ service_date: new Date().toISOString().split('T')[0], description: '', hours_used: '', category: 'Request' });
+
+      } catch (err: any) {
+          alert('Failed to save log: ' + err.message);
+      } finally {
+          setIsSavingMaLog(false);
+      }
+  };
+
+  const handleDeleteMaLog = async (logId: string) => {
+      if (!confirm("Delete this support log?")) return;
+      try {
+          await supabase.from('ma_logs').delete().eq('id', logId);
+          setMaLogs(prev => prev.filter(l => l.id !== logId));
+      } catch (err) { console.error(err); }
   };
 
   const handleDismissMa = () => {
@@ -534,6 +598,9 @@ export const ProjectDetail: React.FC = () => {
   if (error || !project) return <div className="text-center p-10 text-red-500 bg-red-50 rounded-lg m-10 border border-red-200">{error || 'Project not found'}</div>;
 
   const currentStatus = dailyUpdates[0]?.status_today as ProjectStatus || ProjectStatus.ON_TRACK;
+  const totalMaHoursUsed = maLogs.reduce((acc, log) => acc + (log.hours_used || 0), 0);
+  const maHoursLimit = project.ma_support_hours_total || 0;
+  const maUsagePercent = maHoursLimit > 0 ? (totalMaHoursUsed / maHoursLimit) * 100 : 0;
 
   // Timeline Helper
   const renderTimeline = () => {
@@ -995,6 +1062,15 @@ export const ProjectDetail: React.FC = () => {
                             <ClipboardList size={16} />
                             Weekly Reports
                         </button>
+                        {project.has_ma && (
+                            <button 
+                                onClick={() => setActiveTab('ma')}
+                                className={`font-bold text-sm flex items-center gap-2 pb-1 border-b-2 transition-all ${activeTab === 'ma' ? 'text-indigo-600 border-indigo-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
+                            >
+                                <Wrench size={16} />
+                                MA Support
+                            </button>
+                        )}
                     </div>
                 </div>
                 
@@ -1095,6 +1171,70 @@ export const ProjectDetail: React.FC = () => {
                             )}
                         </>
                     )}
+
+                    {/* MA Support Logs Content */}
+                    {activeTab === 'ma' && (
+                        <div className="p-4 space-y-4">
+                            {/* MA Stats */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                                    <div className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1">Support Hours Used</div>
+                                    <div className="text-2xl font-bold text-slate-900">{totalMaHoursUsed} <span className="text-sm text-slate-500 font-normal">/ {maHoursLimit > 0 ? maHoursLimit : '∞'} hrs</span></div>
+                                    {maHoursLimit > 0 && (
+                                        <div className="w-full bg-indigo-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                                            <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${Math.min(100, maUsagePercent)}%` }}></div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex items-center justify-center p-4 bg-white border border-slate-200 rounded-lg border-dashed">
+                                     <button 
+                                        onClick={() => setIsMaLogModalOpen(true)}
+                                        className="flex flex-col items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                                    >
+                                        <PlusCircle size={24} />
+                                        <span className="text-sm font-bold">Log Support Task</span>
+                                     </button>
+                                </div>
+                            </div>
+
+                            {/* Logs List */}
+                            <div className="border-t border-slate-100 pt-2">
+                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Service History</h4>
+                                {maLogs.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {maLogs.map(log => (
+                                            <div key={log.id} className="p-3 bg-white border border-slate-200 rounded-lg flex justify-between items-start hover:shadow-sm transition-shadow group">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                                                            log.category === 'Incident' ? 'bg-red-50 text-red-700 border border-red-100' :
+                                                            log.category === 'Request' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                                                            'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                                        }`}>
+                                                            {log.category}
+                                                        </span>
+                                                        <span className="text-xs text-slate-400 font-mono">{log.service_date}</span>
+                                                    </div>
+                                                    <p className="text-sm text-slate-700">{log.description}</p>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1">
+                                                    <span className="text-sm font-bold text-slate-900">{log.hours_used}h</span>
+                                                    <button 
+                                                        onClick={() => handleDeleteMaLog(log.id)}
+                                                        className="text-slate-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 text-slate-400 text-sm italic">No support logs recorded.</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
              </div>
         </div>
@@ -1138,7 +1278,7 @@ export const ProjectDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* MA Configuration Modal */}
+      {/* MA Configuration Modal (Enabling MA) */}
       {isMaModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
              <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 border border-slate-200">
@@ -1187,6 +1327,84 @@ export const ProjectDetail: React.FC = () => {
                  </div>
              </div>
         </div>
+      )}
+
+      {/* MA Log Modal (Support Task) */}
+      {isMaLogModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 border border-slate-200">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50">
+                      <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                          <Wrench className="text-indigo-600" size={24} />
+                          Log Support Task
+                      </h3>
+                      <button onClick={() => setIsMaLogModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded-full">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date</label>
+                            <input 
+                                type="date"
+                                value={maLogData.service_date}
+                                onChange={(e) => setMaLogData({...maLogData, service_date: e.target.value})}
+                                className="w-full rounded-lg border-slate-300 text-sm p-2.5"
+                            />
+                        </div>
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category</label>
+                             <select 
+                                value={maLogData.category}
+                                onChange={(e) => setMaLogData({...maLogData, category: e.target.value})}
+                                className="w-full rounded-lg border-slate-300 text-sm p-2.5"
+                             >
+                                 <option value="Request">Request</option>
+                                 <option value="Incident">Incident</option>
+                                 <option value="Maintenance">Maintenance</option>
+                                 <option value="Other">Other</option>
+                             </select>
+                        </div>
+                      </div>
+                      
+                      <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description</label>
+                           <textarea 
+                                value={maLogData.description}
+                                onChange={(e) => setMaLogData({...maLogData, description: e.target.value})}
+                                className="w-full rounded-lg border-slate-300 text-sm p-3 h-24 resize-none"
+                                placeholder="Details of the support provided..."
+                           />
+                      </div>
+
+                      <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Hours Used</label>
+                           <input 
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                value={maLogData.hours_used}
+                                onChange={(e) => setMaLogData({...maLogData, hours_used: e.target.value})}
+                                className="w-full rounded-lg border-slate-300 text-sm p-2.5"
+                                placeholder="0.0"
+                           />
+                      </div>
+
+                      <div className="pt-4 flex gap-3">
+                        <button onClick={() => setIsMaLogModalOpen(false)} className="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-lg font-bold text-sm">Cancel</button>
+                        <button 
+                            onClick={handleSaveMaLog}
+                            disabled={isSavingMaLog || !maLogData.description}
+                            className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm shadow-md disabled:opacity-70 flex items-center justify-center gap-2"
+                        >
+                            {isSavingMaLog ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                            Save Log
+                        </button>
+                    </div>
+                  </div>
+              </div>
+          </div>
       )}
 
       {/* Daily Log Modal */}

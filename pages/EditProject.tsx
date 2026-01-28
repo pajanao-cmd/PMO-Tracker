@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings, DollarSign, Repeat, ShieldCheck } from 'lucide-react';
+import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings, DollarSign, Repeat, ShieldCheck, Clock } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { ProjectTypeManager } from '../components/ProjectTypeManager';
 import { ProjectType } from '../types';
@@ -27,7 +27,8 @@ export const EditProject: React.FC = () => {
     billing_cycle_count: 1,
     has_ma: false,
     ma_start_date: '',
-    ma_end_date: ''
+    ma_end_date: '',
+    ma_support_hours_total: 0
   });
 
   const [loading, setLoading] = useState(true);
@@ -73,7 +74,8 @@ export const EditProject: React.FC = () => {
                     billing_cycle_count: data.billing_cycle_count || 1,
                     has_ma: data.has_ma || false,
                     ma_start_date: data.ma_start_date || '',
-                    ma_end_date: data.ma_end_date || ''
+                    ma_end_date: data.ma_end_date || '',
+                    ma_support_hours_total: data.ma_support_hours_total || 0
                 });
             }
         } catch (error: any) {
@@ -130,7 +132,8 @@ export const EditProject: React.FC = () => {
                 billing_cycle_count: formData.billing_cycle_count,
                 has_ma: formData.has_ma,
                 ma_start_date: formData.has_ma ? formData.ma_start_date : null,
-                ma_end_date: formData.has_ma ? formData.ma_end_date : null
+                ma_end_date: formData.has_ma ? formData.ma_end_date : null,
+                ma_support_hours_total: formData.has_ma ? parseFloat(String(formData.ma_support_hours_total)) : 0
             })
             .eq('id', id);
 
@@ -419,6 +422,25 @@ export const EditProject: React.FC = () => {
                                 onChange={handleChange}
                                 className="w-full rounded-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm text-sm p-2.5"
                             />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MA Support Allowance (Hours)</label>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-600 transition-colors">
+                                    <Clock size={18} />
+                                </div>
+                                <input
+                                    type="number"
+                                    name="ma_support_hours_total"
+                                    min="0"
+                                    step="0.5"
+                                    value={formData.ma_support_hours_total}
+                                    onChange={handleChange}
+                                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm text-slate-900 transition-all"
+                                    placeholder="e.g. 100"
+                                />
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1">Total support hours included in this contract period.</p>
                         </div>
                     </div>
                 )}

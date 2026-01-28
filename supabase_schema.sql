@@ -60,6 +60,7 @@ CREATE TABLE public.projects (
     has_ma BOOLEAN DEFAULT FALSE,
     ma_start_date DATE,
     ma_end_date DATE,
+    ma_support_hours_total NUMERIC DEFAULT 0, -- Total allowance for MA support
 
     tags TEXT[], -- PostgreSQL array type for tags
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -101,6 +102,18 @@ CREATE TABLE public.project_types (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 8. MA Logs Table (New)
+-- Tracks support tasks during the MA period
+CREATE TABLE public.ma_logs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+    service_date DATE NOT NULL,
+    description TEXT NOT NULL,
+    hours_used NUMERIC DEFAULT 0,
+    category TEXT DEFAULT 'Request', -- Incident, Request, Maintenance
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Insert Defaults
 INSERT INTO public.project_types (name) VALUES
 ('Digital'),
@@ -126,6 +139,9 @@ CREATE INDEX idx_milestones_project ON public.milestones(project_id);
 -- Speed up loading updates, sorted by newest first
 CREATE INDEX idx_updates_project_date ON public.project_updates(project_id, week_ending DESC);
 
+-- Speed up loading MA logs for a project
+CREATE INDEX idx_ma_logs_project ON public.ma_logs(project_id, service_date DESC);
+
 -- -----------------------------------------------------------------------------
 -- Row Level Security (RLS) - Security Baseline
 -- -----------------------------------------------------------------------------
@@ -136,6 +152,7 @@ ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_updates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ma_logs ENABLE ROW LEVEL SECURITY;
 
 -- Policy Example: View Access
 -- "Anyone who is authenticated can view all projects"
@@ -159,3 +176,13 @@ CREATE POLICY "Enable read access for authenticated users" ON public.project_typ
 
 CREATE POLICY "Enable all access for authenticated users" ON public.project_types
     FOR ALL USING (auth.role() = 'authenticated');
+
+-- MA Logs Policies
+CREATE POLICY "Enable read access for authenticated users" ON public.ma_logs
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Enable insert for authenticated users" ON public.ma_logs
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+    
+CREATE POLICY "Enable delete for authenticated users" ON public.ma_logs
+    FOR DELETE USING (auth.role() = 'authenticated');

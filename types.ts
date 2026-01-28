@@ -15,6 +15,17 @@ export interface Project {
   has_ma: boolean; // New field for Maintenance Agreement
   ma_start_date?: string; // New field
   ma_end_date?: string; // New field
+  ma_support_hours_total?: number; // New field for MA Allowance
+  created_at: string;
+}
+
+export interface MaLog {
+  id: string;
+  project_id: string;
+  service_date: string;
+  description: string;
+  hours_used: number;
+  category: 'Incident' | 'Request' | 'Maintenance' | 'Other';
   created_at: string;
 }
 
@@ -131,6 +142,7 @@ export interface ProjectDetail {
   has_ma: boolean; // New field for Maintenance Agreement
   ma_start_date?: string; // New field
   ma_end_date?: string; // New field
+  ma_support_hours_total?: number; // New field
   progress: number;
   tags: string[];
   start_date: string;
