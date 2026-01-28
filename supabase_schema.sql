@@ -55,6 +55,12 @@ CREATE TABLE public.projects (
     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
     total_budget NUMERIC DEFAULT 0,
     billing_cycle_count INTEGER DEFAULT 1 CHECK (billing_cycle_count >= 1),
+    
+    -- Maintenance Agreement (MA) Fields
+    has_ma BOOLEAN DEFAULT FALSE,
+    ma_start_date DATE,
+    ma_end_date DATE,
+
     tags TEXT[], -- PostgreSQL array type for tags
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

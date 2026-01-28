@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings, DollarSign, Repeat } from 'lucide-react';
+import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings, DollarSign, Repeat, ShieldCheck } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { ProjectTypeManager } from '../components/ProjectTypeManager';
 import { ProjectType } from '../types';
@@ -24,7 +24,10 @@ export const EditProject: React.FC = () => {
     active: true,
     progress: 0,
     total_budget: '',
-    billing_cycle_count: 1
+    billing_cycle_count: 1,
+    has_ma: false,
+    ma_start_date: '',
+    ma_end_date: ''
   });
 
   const [loading, setLoading] = useState(true);
@@ -67,7 +70,10 @@ export const EditProject: React.FC = () => {
                     active: data.active,
                     progress: data.progress || 0,
                     total_budget: data.total_budget || '',
-                    billing_cycle_count: data.billing_cycle_count || 1
+                    billing_cycle_count: data.billing_cycle_count || 1,
+                    has_ma: data.has_ma || false,
+                    ma_start_date: data.ma_start_date || '',
+                    ma_end_date: data.ma_end_date || ''
                 });
             }
         } catch (error: any) {
@@ -77,21 +83,22 @@ export const EditProject: React.FC = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-
+    const { name, value, type } = e.target;
+    
     setFormData(prev => {
-        const newData = { ...prev, [name]: value };
+        const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+        const newData = { ...prev, [name]: val };
         
         // Smart Date Validation
         if (name === 'start_date') {
-            if (newData.end_date && value > newData.end_date) {
-                newData.end_date = value;
+            if (newData.end_date && typeof val === 'string' && val > newData.end_date) {
+                newData.end_date = val;
             }
         }
         
         if (name === 'end_date') {
-            if (newData.start_date && value < newData.start_date) {
-                newData.start_date = value;
+            if (newData.start_date && typeof val === 'string' && val < newData.start_date) {
+                newData.start_date = val;
             }
         }
 
@@ -120,7 +127,10 @@ export const EditProject: React.FC = () => {
                 active: formData.active,
                 progress: formData.progress,
                 total_budget: formData.total_budget ? parseFloat(String(formData.total_budget)) : 0,
-                billing_cycle_count: formData.billing_cycle_count
+                billing_cycle_count: formData.billing_cycle_count,
+                has_ma: formData.has_ma,
+                ma_start_date: formData.has_ma ? formData.ma_start_date : null,
+                ma_end_date: formData.has_ma ? formData.ma_end_date : null
             })
             .eq('id', id);
 
@@ -364,6 +374,54 @@ export const EditProject: React.FC = () => {
                     </div>
                     <p className="text-[10px] text-slate-400 mt-1">Number of payment milestones/installments.</p>
                 </div>
+            </div>
+            
+            {/* Maintenance Agreement Section */}
+            <div className="md:col-span-2 bg-indigo-50 p-5 rounded-xl border border-indigo-100">
+                <div className="flex items-center gap-2 mb-4 border-b border-indigo-200 pb-2">
+                     <ShieldCheck size={16} className="text-indigo-600" />
+                     <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Maintenance Agreement (MA)</span>
+                </div>
+
+                <div className="flex items-center mb-4">
+                     <label className="flex items-center cursor-pointer">
+                          <input 
+                               type="checkbox"
+                               name="has_ma"
+                               checked={formData.has_ma}
+                               onChange={handleChange}
+                               className="rounded border-indigo-300 text-indigo-600 shadow-sm focus:ring-indigo-500 h-4 w-4"
+                          />
+                          <span className="ml-2 text-sm font-bold text-slate-700">Enable MA Tracking</span>
+                     </label>
+                </div>
+
+                {formData.has_ma && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MA Start Date</label>
+                            <input
+                                type="date"
+                                name="ma_start_date"
+                                required={formData.has_ma}
+                                value={formData.ma_start_date}
+                                onChange={handleChange}
+                                className="w-full rounded-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm text-sm p-2.5"
+                            />
+                        </div>
+                         <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MA End Date</label>
+                            <input
+                                type="date"
+                                name="ma_end_date"
+                                required={formData.has_ma}
+                                value={formData.ma_end_date}
+                                onChange={handleChange}
+                                className="w-full rounded-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm text-sm p-2.5"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
              {/* Progress (Enhanced) */}

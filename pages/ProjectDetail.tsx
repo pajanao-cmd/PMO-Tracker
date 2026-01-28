@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save, Repeat } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save, Repeat, ShieldCheck } from 'lucide-react';
 import { 
   LineChart, 
   Line, 
@@ -35,6 +35,12 @@ export const ProjectDetail: React.FC = () => {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   
+  // MA Modal State
+  const [showMaPrompt, setShowMaPrompt] = useState(false);
+  const [isMaModalOpen, setIsMaModalOpen] = useState(false);
+  const [maFormData, setMaFormData] = useState({ startDate: '', endDate: '' });
+  const [isSavingMa, setIsSavingMa] = useState(false);
+
   // Daily Log Modal
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -207,6 +213,25 @@ export const ProjectDetail: React.FC = () => {
           if (projectError) throw projectError;
           setProject(projectData);
 
+          // Check if we should prompt for MA
+          if (projectData.progress === 100 && !projectData.has_ma && !localStorage.getItem(`dismiss_ma_${id}`)) {
+              setShowMaPrompt(true);
+          }
+          
+          // Pre-fill MA modal data if needed
+          if (projectData.end_date) {
+               const endDate = new Date(projectData.end_date);
+               const maStart = new Date(endDate);
+               maStart.setDate(maStart.getDate() + 1);
+               const maEnd = new Date(maStart);
+               maEnd.setFullYear(maEnd.getFullYear() + 1);
+               
+               setMaFormData({
+                   startDate: maStart.toISOString().split('T')[0],
+                   endDate: maEnd.toISOString().split('T')[0]
+               });
+          }
+
           // 2. Fetch Milestones
           const { data: milestonesData, error: milestonesError } = await supabase
               .from('milestones')
@@ -253,6 +278,34 @@ export const ProjectDetail: React.FC = () => {
   useEffect(() => {
       fetchData();
   }, [id]);
+
+  // Handle MA Save
+  const handleSaveMa = async () => {
+    if (!id) return;
+    setIsSavingMa(true);
+    try {
+        const { error } = await supabase.from('projects').update({
+            has_ma: true,
+            ma_start_date: maFormData.startDate,
+            ma_end_date: maFormData.endDate
+        }).eq('id', id);
+
+        if (error) throw error;
+        
+        await fetchData();
+        setIsMaModalOpen(false);
+        setShowMaPrompt(false);
+    } catch (err: any) {
+        alert("Failed to save MA: " + err.message);
+    } finally {
+        setIsSavingMa(false);
+    }
+  };
+
+  const handleDismissMa = () => {
+      setShowMaPrompt(false);
+      if (id) localStorage.setItem(`dismiss_ma_${id}`, 'true');
+  };
 
   // AI Helpers
   const handleAiAnalysis = async () => {
@@ -572,6 +625,34 @@ export const ProjectDetail: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 relative pb-20">
+      
+      {/* MA Prompt Banner (If 100% and not enabled) */}
+      {showMaPrompt && (
+          <div className="bg-indigo-600 text-white p-4 rounded-xl shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4">
+              <div className="flex items-center gap-4">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                      <ShieldCheck size={24} />
+                  </div>
+                  <div>
+                      <h3 className="font-bold text-lg">Project Completed! Enable Maintenance Agreement?</h3>
+                      <p className="text-indigo-100 text-sm">Track post-project MA periods, renewals, and SLAs.</p>
+                  </div>
+              </div>
+              <div className="flex gap-3">
+                  <button onClick={handleDismissMa} className="px-4 py-2 hover:bg-white/10 rounded-lg text-sm font-bold transition-colors">Dismiss</button>
+                  <button 
+                    onClick={() => {
+                        setIsMaModalOpen(true);
+                        setShowMaPrompt(false);
+                    }} 
+                    className="px-4 py-2 bg-white text-indigo-700 rounded-lg text-sm font-bold hover:bg-indigo-50 transition-colors shadow-sm"
+                  >
+                    Setup MA
+                  </button>
+              </div>
+          </div>
+      )}
+
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center text-sm text-slate-500 mb-2">
           <Link to="/" className="hover:text-slate-900 transition-colors font-medium">Dashboard</Link>
@@ -587,6 +668,11 @@ export const ProjectDetail: React.FC = () => {
                     <div className="flex items-center gap-3">
                          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{project.project_name}</h1>
                          <StatusBadge status={currentStatus} />
+                         {project.has_ma && (
+                             <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-xs font-bold flex items-center gap-1">
+                                 <ShieldCheck size={12} /> MA Active
+                             </span>
+                         )}
                     </div>
                     <p className="text-slate-600 text-lg leading-relaxed font-light">
                         {project.description || 'No description available for this project.'}
@@ -642,14 +728,29 @@ export const ProjectDetail: React.FC = () => {
                     {project.start_date} <span className="text-slate-400 mx-1">→</span> {project.end_date}
                 </div>
             </div>
+            
             <div className="px-4 flex flex-col justify-center">
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                    <User size={12} /> Project Owner
-                </div>
-                <div className="text-sm font-bold text-slate-900">
-                    {project.owner}
-                </div>
+                {project.has_ma ? (
+                    <>
+                        <div className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                            <ShieldCheck size={12} /> MA Period
+                        </div>
+                         <div className="text-sm font-bold text-slate-900">
+                            {project.ma_start_date} <span className="text-slate-400 mx-1">→</span> {project.ma_end_date}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                            <User size={12} /> Project Owner
+                        </div>
+                        <div className="text-sm font-bold text-slate-900">
+                            {project.owner}
+                        </div>
+                    </>
+                )}
             </div>
+
             {/* Financials & Billing (Updated) */}
             <div className="px-4 flex flex-col justify-center">
                 <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
@@ -685,6 +786,16 @@ export const ProjectDetail: React.FC = () => {
                      <button className="p-1.5 text-slate-500 bg-white hover:text-blue-600 hover:bg-slate-50 rounded border border-slate-200 transition-colors">
                         <LinkIcon size={16} />
                      </button>
+                     {/* Show MA Setup button if not configured */}
+                     {!project.has_ma && (
+                         <button 
+                            onClick={() => setIsMaModalOpen(true)}
+                            className="p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-100 transition-colors"
+                            title="Setup MA"
+                         >
+                            <ShieldCheck size={16} />
+                         </button>
+                     )}
                  </div>
             </div>
          </div>
@@ -1026,6 +1137,57 @@ export const ProjectDetail: React.FC = () => {
              </div>
         </div>
       </div>
+
+      {/* MA Configuration Modal */}
+      {isMaModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 border border-slate-200">
+                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50">
+                      <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                          <ShieldCheck className="text-indigo-600" size={24} />
+                          Maintenance Agreement (MA)
+                      </h3>
+                      <button onClick={() => setIsMaModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded-full">
+                          <X size={20} />
+                      </button>
+                 </div>
+                 <div className="p-6 space-y-4">
+                    <p className="text-sm text-slate-600">Configure the MA tracking period for this completed project.</p>
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MA Start Date</label>
+                        <input 
+                            type="date"
+                            value={maFormData.startDate}
+                            onChange={(e) => setMaFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                            className="w-full rounded-lg border-slate-300 text-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                     <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MA End Date</label>
+                        <input 
+                            type="date"
+                            value={maFormData.endDate}
+                            onChange={(e) => setMaFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                            className="w-full rounded-lg border-slate-300 text-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+
+                    <div className="pt-4 flex gap-3">
+                        <button onClick={() => setIsMaModalOpen(false)} className="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-lg font-bold text-sm">Cancel</button>
+                        <button 
+                            onClick={handleSaveMa}
+                            disabled={isSavingMa || !maFormData.startDate || !maFormData.endDate}
+                            className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm shadow-md disabled:opacity-70 flex items-center justify-center gap-2"
+                        >
+                            {isSavingMa ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                            Enable Tracking
+                        </button>
+                    </div>
+                 </div>
+             </div>
+        </div>
+      )}
 
       {/* Daily Log Modal */}
       {isLogModalOpen && (

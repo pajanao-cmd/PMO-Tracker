@@ -12,6 +12,9 @@ export interface Project {
   progress: number; // 0-100
   total_budget: number; // New field
   billing_cycle_count: number; // New field
+  has_ma: boolean; // New field for Maintenance Agreement
+  ma_start_date?: string; // New field
+  ma_end_date?: string; // New field
   created_at: string;
 }
 
@@ -123,8 +126,11 @@ export interface ProjectDetail {
   status: ProjectStatus;
   description: string;
   budget_consumed_percent: number;
-  total_budget: number; // New field
-  billing_cycle_count: number; // New field
+  total_budget: number;
+  billing_cycle_count: number;
+  has_ma: boolean; // New field for Maintenance Agreement
+  ma_start_date?: string; // New field
+  ma_end_date?: string; // New field
   progress: number;
   tags: string[];
   start_date: string;
