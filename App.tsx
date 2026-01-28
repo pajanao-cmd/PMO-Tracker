@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -6,6 +7,8 @@ import { DailyLog } from './pages/DailyLog';
 import { CreateProject } from './pages/CreateProject';
 import { EditProject } from './pages/EditProject';
 import { ProjectDetail } from './pages/ProjectDetail';
+import { ReportsAnalytics } from './pages/ReportsAnalytics';
+import { MATracking } from './pages/MATracking';
 
 const App: React.FC = () => {
   return (
@@ -18,14 +21,16 @@ const App: React.FC = () => {
           {/* Executive Dashboard */}
           <Route path="/dashboard" element={<Dashboard />} />
           
+          {/* Operations */}
+          <Route path="/ma-tracking" element={<MATracking />} />
+          <Route path="/daily-log" element={<DailyLog />} />
+          <Route path="/reports" element={<ReportsAnalytics />} />
+          
           {/* Project Management */}
           <Route path="/projects/new" element={<CreateProject />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/projects/:id/edit" element={<EditProject />} />
           
-          {/* Daily Log */}
-          <Route path="/daily-log" element={<DailyLog />} />
-
           {/* Legacy/Alias routes to prevent breaking if someone uses old links */}
           <Route path="/create" element={<Navigate to="/projects/new" replace />} />
           <Route path="/daily" element={<Navigate to="/daily-log" replace />} />
