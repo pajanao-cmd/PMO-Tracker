@@ -64,8 +64,8 @@ export const DailyLog: React.FC = () => {
     setChecklist(checklist.map(item => {
         if (item.id === id) {
             const updated = { ...item, [field]: value };
-            // Auto-update logic: if completed, set to 100%. If uncompleted and 100%, maybe leave it or set to 0?
-            // Let's keep it simple: If user clicks check, we handle that in handleToggleTask
+            
+            // Auto-sync percentage and completed status
             if (field === 'percentage' && typeof value === 'number') {
                  if (value === 100 && !item.completed) updated.completed = true;
                  if (value < 100 && item.completed) updated.completed = false;
@@ -83,7 +83,7 @@ export const DailyLog: React.FC = () => {
             return { 
                 ...item, 
                 completed: newCompleted,
-                percentage: newCompleted ? 100 : (item.percentage === 100 ? 0 : item.percentage)
+                percentage: newCompleted ? 100 : 0 // Reset to 0 if unchecked, or keep previous logic if desired
             };
         }
         return item;
@@ -102,13 +102,6 @@ export const DailyLog: React.FC = () => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleAddTask();
-    }
-    if (e.key === 'Backspace' && (e.target as HTMLInputElement).value === '') {
-       // Only remove if it's the text input that triggered backspace on empty
-       // We can't easily detect which input triggered it here without ref check, 
-       // but typically this UX is for the main text field.
-       // e.preventDefault();
-       // handleRemoveTask(id);
     }
   };
 
@@ -165,6 +158,7 @@ export const DailyLog: React.FC = () => {
         // Reset checklist to one empty item
         setChecklist([{ id: Date.now().toString(), text: '', completed: false, percentage: 0, dueDate: '' }]);
         setBlocker('');
+        // Do not reset project selection for easier consecutive logging
         
         setTimeout(() => setSaveStatus('idle'), 3000);
 
@@ -185,7 +179,7 @@ export const DailyLog: React.FC = () => {
             <PenLine size={24} />
         </div>
         <h1 className="text-2xl font-bold text-slate-900">Daily Progress Log</h1>
-        <p className="text-slate-500 mt-2 text-sm">Track your daily tasks and update their completion status.</p>
+        <p className="text-slate-500 mt-2 text-sm">Track your daily tasks, progress percentages, and due dates.</p>
       </div>
 
       <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
@@ -276,70 +270,87 @@ export const DailyLog: React.FC = () => {
                     <div className="w-32 text-left hidden sm:block pl-2">Due Date</div>
                     <div className="w-8"></div>
                 </div>
-                {checklist.map((item, index) => (
-                    <div 
-                        key={item.id} 
-                        className={`group flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 bg-white border-b border-slate-100 last:border-0 transition-colors ${item.completed ? 'bg-slate-50' : ''}`}
-                    >
-                        <div className="flex items-center gap-3 flex-1 w-full">
-                             <button 
-                                onClick={() => handleToggleTask(item.id)}
-                                className={`flex-shrink-0 transition-colors ${item.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-400'}`}
-                            >
-                                {item.completed ? <CheckSquare size={20} /> : <Square size={20} />}
-                            </button>
-                            
-                            <input
-                                type="text"
-                                value={item.text}
-                                onChange={(e) => handleUpdateTask(item.id, 'text', e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, item.id)}
-                                placeholder={index === 0 ? "What task are you working on?" : "Task description..."}
-                                className={`flex-1 bg-transparent border-none p-0 text-sm focus:ring-0 placeholder:text-slate-400 ${item.completed ? 'text-slate-400 line-through' : 'text-slate-700 font-medium'}`}
-                                autoFocus={index === checklist.length - 1 && index > 0}
-                            />
-                        </div>
-
-                        <div className="flex items-center gap-2 pl-8 sm:pl-0 w-full sm:w-auto justify-between sm:justify-end">
-                            {/* Percentage Input */}
-                            <div className="relative w-20 flex items-center">
+                {checklist.map((item, index) => {
+                    const isOverdue = item.dueDate && new Date(item.dueDate) < new Date(new Date().setHours(0,0,0,0)) && !item.completed;
+                    
+                    return (
+                        <div 
+                            key={item.id} 
+                            className={`group flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 bg-white border-b border-slate-100 last:border-0 transition-colors ${item.completed ? 'bg-emerald-50/30' : ''}`}
+                        >
+                            <div className="flex items-center gap-3 flex-1 w-full">
+                                <button 
+                                    onClick={() => handleToggleTask(item.id)}
+                                    className={`flex-shrink-0 transition-colors ${item.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-400'}`}
+                                >
+                                    {item.completed ? <CheckSquare size={20} /> : <Square size={20} />}
+                                </button>
+                                
                                 <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    value={item.percentage}
-                                    onChange={(e) => {
-                                        let val = parseInt(e.target.value);
-                                        if (isNaN(val)) val = 0;
-                                        if (val > 100) val = 100;
-                                        handleUpdateTask(item.id, 'percentage', val);
-                                    }}
-                                    className={`w-full text-right pr-6 py-1 rounded border text-xs font-bold ${item.percentage === 100 ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-slate-600 border-slate-200 focus:border-blue-500'}`}
-                                    placeholder="0"
-                                />
-                                <span className="absolute right-2 text-slate-400 text-[10px] pointer-events-none">%</span>
-                            </div>
-
-                            {/* Due Date Input */}
-                            <div className="relative w-32">
-                                <input
-                                    type="date"
-                                    value={item.dueDate}
-                                    onChange={(e) => handleUpdateTask(item.id, 'dueDate', e.target.value)}
-                                    className={`w-full py-1 px-2 rounded border text-xs font-medium ${item.dueDate ? 'text-slate-700 border-slate-200' : 'text-slate-400 border-slate-200'}`}
+                                    type="text"
+                                    value={item.text}
+                                    onChange={(e) => handleUpdateTask(item.id, 'text', e.target.value)}
+                                    onKeyDown={(e) => handleKeyDown(e, item.id)}
+                                    placeholder={index === 0 ? "What task are you working on?" : "Task description..."}
+                                    className={`flex-1 bg-transparent border-none p-0 text-sm focus:ring-0 placeholder:text-slate-400 ${item.completed ? 'text-slate-400 line-through' : 'text-slate-700 font-medium'}`}
+                                    autoFocus={index === checklist.length - 1 && index > 0}
                                 />
                             </div>
 
-                            <button 
-                                onClick={() => handleRemoveTask(item.id)}
-                                className="text-slate-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
-                                title="Remove item"
-                            >
-                                <Trash2 size={16} />
-                            </button>
+                            <div className="flex items-center gap-2 pl-8 sm:pl-0 w-full sm:w-auto justify-between sm:justify-end">
+                                {/* Percentage Input */}
+                                <div className="relative w-20 flex items-center">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={item.percentage}
+                                        onChange={(e) => {
+                                            let val = parseInt(e.target.value);
+                                            if (isNaN(val)) val = 0;
+                                            if (val > 100) val = 100;
+                                            handleUpdateTask(item.id, 'percentage', val);
+                                        }}
+                                        className={`w-full text-right pr-6 py-1.5 rounded border text-xs font-bold transition-colors ${
+                                            item.percentage === 100 
+                                            ? 'text-emerald-600 border-emerald-200 bg-emerald-50' 
+                                            : 'text-slate-600 border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                                        }`}
+                                        placeholder="0"
+                                    />
+                                    <span className="absolute right-2 text-slate-400 text-[10px] pointer-events-none">%</span>
+                                </div>
+
+                                {/* Due Date Input */}
+                                <div className="relative w-36 sm:w-32">
+                                    <input
+                                        type="date"
+                                        value={item.dueDate}
+                                        onChange={(e) => handleUpdateTask(item.id, 'dueDate', e.target.value)}
+                                        className={`w-full py-1 px-2 rounded border text-xs font-medium transition-colors ${
+                                            isOverdue 
+                                            ? 'text-red-600 border-red-300 bg-red-50' 
+                                            : item.dueDate 
+                                                ? 'text-slate-700 border-slate-200' 
+                                                : 'text-slate-400 border-slate-200'
+                                        }`}
+                                    />
+                                    {isOverdue && (
+                                        <div className="absolute -top-2 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
+                                    )}
+                                </div>
+
+                                <button 
+                                    onClick={() => handleRemoveTask(item.id)}
+                                    className="text-slate-300 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                                    title="Remove item"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
                 
                 {/* Empty State / Add Prompt */}
                 {checklist.length === 0 && (
@@ -348,7 +359,9 @@ export const DailyLog: React.FC = () => {
                      </button>
                 )}
             </div>
-            <p className="text-[10px] text-slate-400 mt-2 text-right">Tip: Setting progress to 100% automatically checks the task.</p>
+            <p className="text-[10px] text-slate-400 mt-2 text-right">
+                Tip: Setting progress to 100% automatically completes the task.
+            </p>
         </div>
 
         {/* Blockers */}
