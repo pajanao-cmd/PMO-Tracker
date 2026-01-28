@@ -44,6 +44,23 @@ export interface ProjectType {
   name: string;
 }
 
+// Billing Types
+export enum BillingStatus {
+  PENDING = 'Pending',
+  INVOICED = 'Invoiced',
+  PAID = 'Paid'
+}
+
+export interface BillingInstallment {
+  id: string;
+  project_id: string;
+  name: string;
+  amount: number;
+  due_date: string;
+  status: BillingStatus;
+  created_at: string;
+}
+
 // Joined View for Dashboard
 export interface DashboardProject extends Project {
   latest_update?: {
@@ -139,10 +156,10 @@ export interface ProjectDetail {
   budget_consumed_percent: number;
   total_budget: number;
   billing_cycle_count: number;
-  has_ma: boolean; // New field for Maintenance Agreement
-  ma_start_date?: string; // New field
-  ma_end_date?: string; // New field
-  ma_support_hours_total?: number; // New field
+  has_ma: boolean; 
+  ma_start_date?: string; 
+  ma_end_date?: string; 
+  ma_support_hours_total?: number;
   progress: number;
   tags: string[];
   start_date: string;
@@ -154,4 +171,5 @@ export interface ProjectDetail {
   };
   updates: WeeklyUpdate[];
   milestones: Milestone[];
+  billings?: BillingInstallment[]; // Added billings to detailed view
 }

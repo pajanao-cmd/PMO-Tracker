@@ -23,6 +23,13 @@ CREATE TYPE public.milestone_status AS ENUM (
     'MISSED'
 );
 
+-- Matches BillingStatus in types.ts
+CREATE TYPE public.billing_status AS ENUM (
+    'PENDING',
+    'INVOICED',
+    'PAID'
+);
+
 -- Matches User role in types.ts
 CREATE TYPE public.user_role AS ENUM (
     'PM',
@@ -114,6 +121,18 @@ CREATE TABLE public.ma_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 9. Project Billings Table (New)
+-- Tracks financial installments
+CREATE TABLE public.project_billings (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    amount NUMERIC DEFAULT 0,
+    due_date DATE,
+    status billing_status DEFAULT 'PENDING'::billing_status,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Insert Defaults
 INSERT INTO public.project_types (name) VALUES
 ('Digital'),
@@ -142,6 +161,9 @@ CREATE INDEX idx_updates_project_date ON public.project_updates(project_id, week
 -- Speed up loading MA logs for a project
 CREATE INDEX idx_ma_logs_project ON public.ma_logs(project_id, service_date DESC);
 
+-- Speed up loading Billings
+CREATE INDEX idx_billings_project ON public.project_billings(project_id, due_date);
+
 -- -----------------------------------------------------------------------------
 -- Row Level Security (RLS) - Security Baseline
 -- -----------------------------------------------------------------------------
@@ -153,6 +175,7 @@ ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_updates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_types ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ma_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_billings ENABLE ROW LEVEL SECURITY;
 
 -- Policy Example: View Access
 -- "Anyone who is authenticated can view all projects"
@@ -185,4 +208,17 @@ CREATE POLICY "Enable insert for authenticated users" ON public.ma_logs
     FOR INSERT WITH CHECK (auth.role() = 'authenticated');
     
 CREATE POLICY "Enable delete for authenticated users" ON public.ma_logs
+    FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Billings Policies
+CREATE POLICY "Enable read access for authenticated users" ON public.project_billings
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Enable insert for authenticated users" ON public.project_billings
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Enable update for authenticated users" ON public.project_billings
+    FOR UPDATE USING (auth.role() = 'authenticated');
+    
+CREATE POLICY "Enable delete for authenticated users" ON public.project_billings
     FOR DELETE USING (auth.role() = 'authenticated');

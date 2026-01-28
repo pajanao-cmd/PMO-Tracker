@@ -1,12 +1,113 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { FileText, Loader2, RefreshCw, Zap, TrendingUp, Download, Bot, Filter, Calendar, X } from 'lucide-react';
+import { FileText, Loader2, RefreshCw, Zap, TrendingUp, Download, Bot, Filter, Calendar, X, Search, ChevronDown, Check } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { generateMondayBriefing } from '../services/geminiService';
 import { ProjectStatus } from '../types';
+
+// --- Components ---
+
+const MultiSelectDropdown = ({ 
+    options, 
+    selected, 
+    onChange 
+}: { 
+    options: string[], 
+    selected: string[], 
+    onChange: (val: string[]) => void 
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleOption = (option: string) => {
+        if (selected.includes(option)) {
+            onChange(selected.filter(s => s !== option));
+        } else {
+            onChange([...selected, option]);
+        }
+    };
+
+    const filteredOptions = options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
+
+    return (
+        <div className="relative w-full md:w-auto" ref={containerRef}>
+            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-1.5">
+                <Filter size={12} /> Project Type
+            </label>
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full md:min-w-[200px] px-3 py-2 text-left bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex justify-between items-center transition-all hover:border-blue-300"
+            >
+                <span className="truncate block max-w-[160px] text-slate-700 font-medium">
+                    {selected.length === 0 
+                        ? "All Types" 
+                        : selected.length === 1 
+                            ? selected[0] 
+                            : `${selected.length} Selected`
+                    }
+                </span>
+                <ChevronDown size={16} className={`text-slate-400 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-50 mt-1 w-full md:w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-2 animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                    <div className="px-2 pb-2 border-b border-slate-100 mb-2">
+                        <div className="relative">
+                            <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+                            <input 
+                                type="text" 
+                                placeholder="Search types..." 
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full pl-8 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-slate-200">
+                        <div 
+                            className="px-2 py-1.5 hover:bg-slate-50 rounded-md cursor-pointer flex items-center gap-2 text-sm font-bold text-slate-600 mb-1"
+                            onClick={() => onChange([])}
+                        >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selected.length === 0 ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'}`}>
+                                {selected.length === 0 && <Check size={10} />}
+                            </div>
+                            All Types
+                        </div>
+                        {filteredOptions.length > 0 ? filteredOptions.map(option => (
+                            <div 
+                                key={option}
+                                className="px-2 py-1.5 hover:bg-slate-50 rounded-md cursor-pointer flex items-center gap-2 text-sm text-slate-700"
+                                onClick={() => toggleOption(option)}
+                            >
+                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selected.includes(option) ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'}`}>
+                                    {selected.includes(option) && <Check size={10} />}
+                                </div>
+                                {option}
+                            </div>
+                        )) : (
+                            <div className="px-2 py-4 text-xs text-slate-400 text-center italic">No matching types</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const ReportsAnalytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -24,7 +125,9 @@ export const ReportsAnalytics: React.FC = () => {
     return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedType, setSelectedType] = useState('All');
+  
+  // Replaced single selectedType with array
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [availableTypes, setAvailableTypes] = useState<string[]>([]);
 
   const [aiBriefing, setAiBriefing] = useState<string | null>(null);
@@ -47,8 +150,9 @@ export const ReportsAnalytics: React.FC = () => {
       // 1. Fetch Projects (Filtered by Type)
       let projectQuery = supabase.from('projects').select('*');
       
-      if (selectedType !== 'All') {
-        projectQuery = projectQuery.eq('type', selectedType);
+      // Use .in() for multi-select filtering
+      if (selectedTypes.length > 0) {
+        projectQuery = projectQuery.in('type', selectedTypes);
       }
       
       const { data: projects, error: projError } = await projectQuery;
@@ -131,7 +235,7 @@ export const ReportsAnalytics: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [startDate, endDate, selectedType]);
+  }, [startDate, endDate, selectedTypes]); // Updated dependency
 
   const handleGenerateBriefing = async () => {
       setGeneratingBriefing(true);
@@ -211,27 +315,17 @@ export const ReportsAnalytics: React.FC = () => {
                   </div>
               </div>
               
-              <div className="flex flex-col gap-1.5 w-full md:w-auto">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                      <Filter size={12} /> Project Type
-                  </label>
-                  <select 
-                      value={selectedType}
-                      onChange={(e) => setSelectedType(e.target.value)}
-                      className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[180px]"
-                  >
-                      <option value="All">All Types</option>
-                      {availableTypes.map(t => (
-                          <option key={t} value={t}>{t}</option>
-                      ))}
-                  </select>
-              </div>
+              <MultiSelectDropdown 
+                  options={availableTypes} 
+                  selected={selectedTypes} 
+                  onChange={setSelectedTypes} 
+              />
           </div>
           
-          {(selectedType !== 'All' || startDate !== new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) && (
+          {(selectedTypes.length > 0 || startDate !== new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) && (
               <button 
                 onClick={() => {
-                    setSelectedType('All');
+                    setSelectedTypes([]);
                     const d = new Date();
                     d.setDate(d.getDate() - 30);
                     setStartDate(d.toISOString().split('T')[0]);

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save, Repeat, ShieldCheck, Wrench, BarChart2 } from 'lucide-react';
+import { ChevronLeft, Calendar, Flag, DollarSign, Activity, AlertCircle, Bot, X, FileText, Check, Loader2, Zap, User, Link as LinkIcon, Sparkles, Clock, Target, Edit, Diamond, ClipboardList, PlusCircle, ArrowRight, Bold, Italic, Underline, List, ListOrdered, Plus, Trash2, Save, Repeat, ShieldCheck, Wrench, BarChart2, Coins } from 'lucide-react';
 import { 
   LineChart, 
   Line, 
@@ -13,7 +13,7 @@ import {
   Legend
 } from 'recharts';
 import { StatusBadge } from '../components/StatusBadge';
-import { DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate, Milestone, MilestoneStatus, ProjectDailyUpdate, MaLog } from '../types';
+import { DailyLog, RiskAnalysis, ProjectStatus, ProjectDetail as IProjectDetail, WeeklyUpdate, Milestone, MilestoneStatus, ProjectDailyUpdate, MaLog, BillingInstallment, BillingStatus } from '../types';
 import { generateExecutiveRiskAnalysis, generateDailyLog, analyzeRiskPattern, generateWeeklyReport } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 
@@ -26,11 +26,13 @@ export const ProjectDetail: React.FC = () => {
   const [weeklyReports, setWeeklyReports] = useState<WeeklyUpdate[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [maLogs, setMaLogs] = useState<MaLog[]>([]);
+  const [billings, setBillings] = useState<BillingInstallment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // UI State
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'ma'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'ma' | 'finance'>('daily');
+  const [chartView, setChartView] = useState<'week' | 'month'>('week');
 
   // AI & Modal State
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -51,6 +53,17 @@ export const ProjectDetail: React.FC = () => {
       category: 'Request'
   });
   const [isSavingMaLog, setIsSavingMaLog] = useState(false);
+
+  // Billing Modal
+  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [billingFormData, setBillingFormData] = useState({
+      id: '',
+      name: '',
+      amount: '',
+      due_date: '',
+      status: BillingStatus.PENDING
+  });
+  const [isSavingBilling, setIsSavingBilling] = useState(false);
 
   // Daily Log Modal
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -86,7 +99,7 @@ export const ProjectDetail: React.FC = () => {
   const [chartData, setChartData] = useState<any[]>([]);
 
   // Helper to generate S-Curve data
-  const generateProgressData = (proj: any) => {
+  const generateProgressData = (proj: any, view: 'week' | 'month') => {
     try {
         if (!proj || !proj.start_date || !proj.end_date) return [];
 
@@ -97,62 +110,88 @@ export const ProjectDetail: React.FC = () => {
         if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
         if (start.getTime() > end.getTime()) return []; // Invalid range
 
-        const durationMs = end.getTime() - start.getTime();
-        // Avoid division by zero or negative duration
-        if (durationMs <= 0) return [];
-
-        const weeks = Math.ceil(durationMs / (1000 * 60 * 60 * 24 * 7));
-        // Limit points to avoid chart overcrowding if project is very long
-        const totalPoints = Math.max(2, Math.min(weeks, 20)); 
-        const interval = durationMs / (totalPoints - 1);
-
         const data = [];
         const currentProgress = proj.progress || 0;
+        
+        let current = new Date(start);
+        // Normalize to start of day
+        current.setHours(0,0,0,0);
+        const endDate = new Date(end);
+        endDate.setHours(0,0,0,0);
+        
+        // Loop safety
+        let iterations = 0;
+        const maxIterations = 500;
 
-        for (let i = 0; i < totalPoints; i++) {
-            const pointDate = new Date(start.getTime() + i * interval);
+        // Generate points
+        while (current <= endDate && iterations < maxIterations) {
+            data.push(new Date(current));
             
-            // Check for valid date
-            if (isNaN(pointDate.getTime())) continue;
+            if (view === 'week') {
+                current.setDate(current.getDate() + 7);
+            } else {
+                 // Advance by 1 month, handle edge cases roughly
+                 current.setMonth(current.getMonth() + 1);
+            }
+            iterations++;
+        }
+        
+        // Ensure the exact end date is the last point if not already included and reasonably close
+        const lastPoint = data[data.length - 1];
+        if (lastPoint && lastPoint.getTime() < endDate.getTime()) {
+            data.push(endDate);
+        }
 
-            const progressRatio = i / (totalPoints - 1); // 0 to 1
+        const totalDuration = endDate.getTime() - start.getTime();
+
+        return data.map(date => {
+            const timeRatio = totalDuration > 0 ? Math.max(0, Math.min(1, (date.getTime() - start.getTime()) / totalDuration)) : 0;
             
-            // S-Curve Formula for Planned: Using a sigmoid-like approximation
-            // f(x) = x < 0.5 ? 2*x*x : -1+(4-2*x)*x  (Ease-in-out quadratic)
-            const plannedRatio = progressRatio < 0.5 ? 2 * progressRatio * progressRatio : -1 + (4 - 2 * progressRatio) * progressRatio;
+            // S-Curve Planned
+            // f(x) = x < 0.5 ? 2*x*x : -1+(4-2*x)*x (Ease-in-out approximation)
+            const plannedRatio = timeRatio < 0.5 ? 2 * timeRatio * timeRatio : -1 + (4 - 2 * timeRatio) * timeRatio;
             const planned = Math.round(plannedRatio * 100);
 
+            // Actual Logic
             let actual = null;
-            if (pointDate <= today) {
-                // Mock Actual: Interpolate to current real progress but simulate "weekly" reality
-                const timeRatio = Math.min(1, (pointDate.getTime() - start.getTime()) / (today.getTime() - start.getTime()));
-                
-                if (i === 0) {
-                    actual = 0;
-                } else if (i === totalPoints - 1 && pointDate <= today) {
-                    actual = currentProgress;
-                } else {
-                    // Interpolate towards current progress
-                    const baseActual = currentProgress * timeRatio;
-                    // Add variance for realism
-                    const variance = (Math.random() * 6 - 3); 
-                    actual = Math.max(0, Math.min(100, Math.round(baseActual + variance)));
-                }
+            // Show actual only if the point is in the past or today
+            if (date <= today || (date.getTime() - today.getTime()) < 24*60*60*1000) { 
+                 
+                 const projectTimeElapsed = today.getTime() - start.getTime();
+                 const pointTimeElapsed = date.getTime() - start.getTime();
+                 
+                 let pointRatio = 0;
+                 if (projectTimeElapsed > 0) {
+                     pointRatio = Math.min(1, pointTimeElapsed / projectTimeElapsed);
+                 }
+                 
+                 // Apply variance to make it look realistic (not a straight line) for past points
+                 // This mocks history since we don't load full history for chart yet
+                 const variance = (Math.random() * 4 - 2); 
+                 let val = (currentProgress * pointRatio) + variance;
+                 
+                 // Fix boundaries
+                 if (date.getTime() <= start.getTime()) val = 0;
+                 if (val < 0) val = 0;
+                 if (val > 100) val = 100;
+
+                 // If this point is 'today' (or the point closest to today), force it to match current actual progress
+                 if (Math.abs(date.getTime() - today.getTime()) < 24*60*60*1000 * (view === 'week' ? 7 : 30) && date <= today) {
+                     val = currentProgress; 
+                 }
+                 
+                 actual = Math.round(val);
             }
             
-            // If it's the last point and in the past, force it to match current progress exactly
-            if (i === totalPoints -1 && pointDate <= today) {
-                actual = currentProgress;
-            }
-
-            data.push({
-                name: pointDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            return {
+                name: view === 'week' 
+                    ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
                 planned,
                 actual,
-                fullDate: pointDate.toLocaleDateString()
-            });
-        }
-        return data;
+                fullDate: date.toLocaleDateString()
+            };
+        });
     } catch (e) {
         console.error("Error generating chart data", e);
         return [];
@@ -284,9 +323,16 @@ export const ProjectDetail: React.FC = () => {
              setMaLogs(maData || []);
           }
 
-          // 6. Generate Chart Data
-          const chartData = generateProgressData(projectData);
-          setChartData(chartData);
+          // 6. Fetch Billings
+          const { data: billingData } = await supabase
+              .from('project_billings')
+              .select('*')
+              .eq('project_id', id)
+              .order('due_date', { ascending: true });
+          setBillings(billingData || []);
+
+          // 7. Generate Chart Data
+          setChartData(generateProgressData(projectData, chartView));
 
       } catch (err: any) {
           console.error('Error loading project:', err);
@@ -299,6 +345,13 @@ export const ProjectDetail: React.FC = () => {
   useEffect(() => {
       fetchData();
   }, [id]);
+  
+  // Re-generate chart when view changes
+  useEffect(() => {
+      if (project) {
+          setChartData(generateProgressData(project, chartView));
+      }
+  }, [chartView, project]);
 
   // Handle MA Save (Enable MA)
   const handleSaveMa = async () => {
@@ -355,6 +408,94 @@ export const ProjectDetail: React.FC = () => {
           alert('Failed to save log: ' + err.message);
       } finally {
           setIsSavingMaLog(false);
+      }
+  };
+
+  // Handle Billing Save
+  const handleSaveBilling = async () => {
+      if (!id) return;
+      if (!billingFormData.name || !billingFormData.due_date) {
+          alert("Name and Due Date are required.");
+          return;
+      }
+
+      setIsSavingBilling(true);
+      try {
+          const payload = {
+              project_id: id,
+              name: billingFormData.name,
+              amount: parseFloat(billingFormData.amount) || 0,
+              due_date: billingFormData.due_date,
+              status: billingFormData.status
+          };
+
+          if (billingFormData.id) {
+              const { error } = await supabase
+                  .from('project_billings')
+                  .update(payload)
+                  .eq('id', billingFormData.id);
+              if (error) throw error;
+          } else {
+              const { error } = await supabase
+                  .from('project_billings')
+                  .insert([payload]);
+              if (error) throw error;
+          }
+
+          // Refresh billings
+          const { data: billingData } = await supabase
+              .from('project_billings')
+              .select('*')
+              .eq('project_id', id)
+              .order('due_date', { ascending: true });
+          setBillings(billingData || []);
+          setIsBillingModalOpen(false);
+          setBillingFormData({ id: '', name: '', amount: '', due_date: '', status: BillingStatus.PENDING });
+
+      } catch (err: any) {
+          alert("Failed to save installment: " + err.message);
+      } finally {
+          setIsSavingBilling(false);
+      }
+  };
+
+  const handleEditBilling = (item: BillingInstallment) => {
+      setBillingFormData({
+          id: item.id,
+          name: item.name,
+          amount: item.amount.toString(),
+          due_date: item.due_date,
+          status: item.status
+      });
+      setIsBillingModalOpen(true);
+  };
+
+  const handleDeleteBilling = async (billingId: string) => {
+      if (!confirm("Are you sure you want to delete this installment?")) return;
+      try {
+          await supabase.from('project_billings').delete().eq('id', billingId);
+          setBillings(prev => prev.filter(b => b.id !== billingId));
+      } catch (err: any) {
+          alert("Failed to delete: " + err.message);
+      }
+  };
+
+  const handleToggleBillingStatus = async (item: BillingInstallment) => {
+      const nextStatus = item.status === BillingStatus.PENDING ? BillingStatus.INVOICED 
+                       : item.status === BillingStatus.INVOICED ? BillingStatus.PAID 
+                       : BillingStatus.PENDING;
+      
+      try {
+          const { error } = await supabase
+              .from('project_billings')
+              .update({ status: nextStatus })
+              .eq('id', item.id);
+          
+          if (error) throw error;
+          
+          setBillings(prev => prev.map(b => b.id === item.id ? { ...b, status: nextStatus } : b));
+      } catch (err: any) {
+          alert("Status update failed: " + err.message);
       }
   };
 
@@ -602,6 +743,11 @@ export const ProjectDetail: React.FC = () => {
   const maHoursLimit = project.ma_support_hours_total || 0;
   const maUsagePercent = maHoursLimit > 0 ? (totalMaHoursUsed / maHoursLimit) * 100 : 0;
 
+  // Billing Calcs
+  const totalBilled = billings.reduce((sum, b) => b.status !== BillingStatus.PENDING ? sum + b.amount : sum, 0);
+  const totalPaid = billings.reduce((sum, b) => b.status === BillingStatus.PAID ? sum + b.amount : sum, 0);
+  const billedPercent = project.total_budget > 0 ? (totalBilled / project.total_budget) * 100 : 0;
+
   // Timeline Helper
   const renderTimeline = () => {
       try {
@@ -826,20 +972,15 @@ export const ProjectDetail: React.FC = () => {
                 <div className="flex flex-col gap-1">
                      <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
                          {project.total_budget ? (
-                            new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(project.total_budget)
+                            new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(project.total_budget)
                          ) : (
                             <span className="text-slate-400 italic">Not set</span>
                          )}
-                         {project.billing_cycle_count > 1 && (
-                            <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold" title="Billing Cycles">
-                                {project.billing_cycle_count} Cycles
-                            </span>
-                         )}
                      </div>
                      <div className="w-full bg-slate-200 rounded-full h-1.5 max-w-[140px]">
-                        <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${project.budget_consumed_percent || 0}%` }}></div>
+                        <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${billedPercent}%` }}></div>
                     </div>
-                    <span className="text-[10px] font-medium text-slate-500">{project.budget_consumed_percent || 0}% Consumed</span>
+                    <span className="text-[10px] font-medium text-slate-500">{Math.round(billedPercent)}% Billed</span>
                 </div>
             </div>
             <div className="px-4 flex flex-col justify-center">
@@ -873,16 +1014,22 @@ export const ProjectDetail: React.FC = () => {
           {/* Main Chart Card */}
           <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[450px]">
               {/* Header */}
-              <div className="flex items-center gap-6 border-b border-slate-100 pb-1 mb-6">
-                  <button className="text-sm font-bold text-slate-900 border-b-2 border-slate-900 pb-3 px-1 transition-all">Weekly Progress</button>
-                  <button className="text-sm font-medium text-slate-400 pb-3 px-1 hover:text-slate-600 transition-colors">Burn-down</button>
-              </div>
-
-              {/* Title & Filters */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                  <div className="w-full text-center">
-                      <h3 className="text-lg font-bold text-slate-700 tracking-tight mb-2">Planned vs Actual</h3>
-                  </div>
+              <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                    <h3 className="text-lg font-bold text-slate-700 tracking-tight">Planned vs Actual</h3>
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <button 
+                            onClick={() => setChartView('week')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${chartView === 'week' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Weekly
+                        </button>
+                        <button 
+                            onClick={() => setChartView('month')}
+                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${chartView === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Monthly
+                        </button>
+                    </div>
               </div>
 
               {/* Chart */}
@@ -896,6 +1043,7 @@ export const ProjectDetail: React.FC = () => {
                             tickLine={false} 
                             tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
                             dy={10}
+                            minTickGap={30}
                           />
                           <YAxis 
                             axisLine={false} 
@@ -903,13 +1051,15 @@ export const ProjectDetail: React.FC = () => {
                             tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
                             domain={[0, 100]}
                             ticks={[0, 20, 40, 60, 80, 100]}
-                            tickFormatter={(v) => `${v}`}
+                            tickFormatter={(v) => `${v}%`}
                           />
                           <Tooltip 
                             cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }}
-                            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '5px', fontSize: '12px' }}
+                            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', padding: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '8px', fontSize: '12px' }}
                             itemStyle={{ fontSize: '12px', padding: 0 }}
+                            formatter={(value: number) => [`${value}%`, '']}
+                            labelFormatter={(label) => `Date: ${label}`}
                           />
                           <Legend 
                              verticalAlign="bottom" 
@@ -986,10 +1136,10 @@ export const ProjectDetail: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Left Column: Updates & Risk */}
+        {/* Left Column: Updates & Risk & Finance */}
         <div className="lg:col-span-2 space-y-6">
              
-             {/* Risk Pattern Detector Widget - Redesigned to be cleaner */}
+             {/* Risk Pattern Detector Widget */}
              <div className="bg-slate-900 rounded-xl shadow-lg overflow-hidden text-white relative">
                  <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950">
                     <div>
@@ -1044,28 +1194,35 @@ export const ProjectDetail: React.FC = () => {
                  </div>
              </div>
 
-             {/* Updates Timeline with Tabs */}
+             {/* Updates/Finance Timeline with Tabs */}
              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
                         <button 
                             onClick={() => setActiveTab('daily')}
-                            className={`font-bold text-sm flex items-center gap-2 pb-1 border-b-2 transition-all ${activeTab === 'daily' ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
+                            className={`font-bold text-sm flex items-center gap-2 pb-1 border-b-2 transition-all whitespace-nowrap ${activeTab === 'daily' ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
                         >
                             <Clock size={16} />
                             Daily Logs
                         </button>
                         <button 
                             onClick={() => setActiveTab('weekly')}
-                            className={`font-bold text-sm flex items-center gap-2 pb-1 border-b-2 transition-all ${activeTab === 'weekly' ? 'text-violet-600 border-violet-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
+                            className={`font-bold text-sm flex items-center gap-2 pb-1 border-b-2 transition-all whitespace-nowrap ${activeTab === 'weekly' ? 'text-violet-600 border-violet-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
                         >
                             <ClipboardList size={16} />
                             Weekly Reports
                         </button>
+                        <button 
+                            onClick={() => setActiveTab('finance')}
+                            className={`font-bold text-sm flex items-center gap-2 pb-1 border-b-2 transition-all whitespace-nowrap ${activeTab === 'finance' ? 'text-emerald-600 border-emerald-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
+                        >
+                            <Coins size={16} />
+                            Financials
+                        </button>
                         {project.has_ma && (
                             <button 
                                 onClick={() => setActiveTab('ma')}
-                                className={`font-bold text-sm flex items-center gap-2 pb-1 border-b-2 transition-all ${activeTab === 'ma' ? 'text-indigo-600 border-indigo-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
+                                className={`font-bold text-sm flex items-center gap-2 pb-1 border-b-2 transition-all whitespace-nowrap ${activeTab === 'ma' ? 'text-indigo-600 border-indigo-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`}
                             >
                                 <Wrench size={16} />
                                 MA Support
@@ -1170,6 +1327,107 @@ export const ProjectDetail: React.FC = () => {
                                 </div>
                             )}
                         </>
+                    )}
+
+                    {/* Financials & Billing Tab */}
+                    {activeTab === 'finance' && (
+                        <div className="p-6 space-y-6">
+                            {/* Stats */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                                    <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Total Collected</div>
+                                    <div className="text-2xl font-bold text-slate-900">
+                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(totalPaid)}
+                                    </div>
+                                    <div className="w-full bg-emerald-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                                        <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${project.total_budget > 0 ? (totalPaid / project.total_budget) * 100 : 0}%` }}></div>
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-white border border-slate-200 rounded-lg border-dashed flex flex-col items-center justify-center">
+                                     <button 
+                                        onClick={() => {
+                                            setBillingFormData({ id: '', name: '', amount: '', due_date: '', status: BillingStatus.PENDING });
+                                            setIsBillingModalOpen(true);
+                                        }}
+                                        className="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-600 transition-colors"
+                                    >
+                                        <PlusCircle size={24} />
+                                        <span className="text-sm font-bold">Add Installment</span>
+                                     </button>
+                                </div>
+                            </div>
+
+                            {/* Billing List */}
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Billing Schedule</h4>
+                                {billings.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {billings.map(item => (
+                                            <div key={item.id} className="p-4 bg-white border border-slate-200 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-sm transition-shadow group">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="font-bold text-slate-800 text-sm">{item.name}</span>
+                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${
+                                                            item.status === BillingStatus.PAID ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                            item.status === BillingStatus.INVOICED ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                            'bg-slate-100 text-slate-500 border-slate-200'
+                                                        }`}>
+                                                            {item.status}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 font-mono flex items-center gap-2">
+                                                        <span>Due: {item.due_date}</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                                                    <div className="text-right">
+                                                        <div className="font-bold text-slate-900 text-sm">
+                                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.amount)}
+                                                        </div>
+                                                        {project.total_budget > 0 && (
+                                                            <div className="text-[10px] text-slate-400">
+                                                                {Math.round((item.amount / project.total_budget) * 100)}% of total
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                        <button 
+                                                            onClick={() => handleToggleBillingStatus(item)}
+                                                            className={`p-1.5 rounded transition-colors ${
+                                                                item.status === BillingStatus.PAID 
+                                                                ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' 
+                                                                : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                                                            }`}
+                                                            title={item.status === BillingStatus.PAID ? "Mark Unpaid" : "Mark Paid"}
+                                                        >
+                                                            <CheckCircleIcon filled={item.status === BillingStatus.PAID} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleEditBilling(item)}
+                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleDeleteBilling(item.id)}
+                                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-lg border border-slate-200 border-dashed">
+                                        No billing installments configured.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     )}
 
                     {/* MA Support Logs Content */}
@@ -1400,6 +1658,95 @@ export const ProjectDetail: React.FC = () => {
                         >
                             {isSavingMaLog ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
                             Save Log
+                        </button>
+                    </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Billing Modal */}
+      {isBillingModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200 border border-slate-200">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-emerald-50">
+                      <h3 className="text-lg font-bold text-emerald-900 flex items-center gap-2">
+                          <Coins className="text-emerald-600" size={24} />
+                          {billingFormData.id ? 'Edit Installment' : 'New Installment'}
+                      </h3>
+                      <button onClick={() => setIsBillingModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded-full">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                      
+                      <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description / Phase</label>
+                           <input 
+                                type="text"
+                                value={billingFormData.name}
+                                onChange={(e) => setBillingFormData({...billingFormData, name: e.target.value})}
+                                className="w-full rounded-lg border-slate-300 text-sm p-2.5"
+                                placeholder="e.g. 1st Payment (Kickoff)"
+                                autoFocus
+                           />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Amount</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                    <DollarSign size={14} />
+                                </div>
+                                <input 
+                                    type="number"
+                                    value={billingFormData.amount}
+                                    onChange={(e) => setBillingFormData({...billingFormData, amount: e.target.value})}
+                                    className="w-full pl-8 rounded-lg border-slate-300 text-sm p-2.5"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Due Date</label>
+                             <input 
+                                type="date"
+                                value={billingFormData.due_date}
+                                onChange={(e) => setBillingFormData({...billingFormData, due_date: e.target.value})}
+                                className="w-full rounded-lg border-slate-300 text-sm p-2.5"
+                             />
+                        </div>
+                      </div>
+
+                      <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
+                           <div className="flex rounded-lg border border-slate-200 p-1 bg-slate-50">
+                               {Object.values(BillingStatus).map(status => (
+                                   <button
+                                      key={status}
+                                      onClick={() => setBillingFormData({...billingFormData, status: status as BillingStatus})}
+                                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                          billingFormData.status === status 
+                                          ? 'bg-white shadow-sm text-slate-900 border border-slate-200' 
+                                          : 'text-slate-400 hover:text-slate-600'
+                                      }`}
+                                   >
+                                       {status}
+                                   </button>
+                               ))}
+                           </div>
+                      </div>
+
+                      <div className="pt-4 flex gap-3">
+                        <button onClick={() => setIsBillingModalOpen(false)} className="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-lg font-bold text-sm">Cancel</button>
+                        <button 
+                            onClick={handleSaveBilling}
+                            disabled={isSavingBilling || !billingFormData.name}
+                            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-sm shadow-md disabled:opacity-70 flex items-center justify-center gap-2"
+                        >
+                            {isSavingBilling ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                            Save
                         </button>
                     </div>
                   </div>
@@ -1703,3 +2050,10 @@ export const ProjectDetail: React.FC = () => {
     </div>
   );
 };
+
+const CheckCircleIcon = ({filled}: {filled: boolean}) => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+);
