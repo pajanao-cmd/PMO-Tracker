@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Activity, TrendingUp, AlertTriangle, CheckCircle, Loader2, RefreshCw, Trash2, Edit, Eye, Filter, ArrowUpRight, Clock, FileText } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle, Loader2, RefreshCw, Trash2, Edit, Eye, Filter, ArrowUpRight, Clock, FileText, Search, X, ChevronDown } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { DashboardProject } from '../types';
 
@@ -8,14 +9,22 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<DashboardProject[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<DashboardProject[]>([]);
+  const [projectTypes, setProjectTypes] = useState<string[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('All');
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [lifecycleFilter, setLifecycleFilter] = useState('Active'); // Active, Archived, All
 
   const fetchDashboardData = async () => {
     setLoading(true);
     setError(null);
     try {
+      // 1. Fetch Projects
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
@@ -23,6 +32,7 @@ export const Dashboard: React.FC = () => {
 
       if (projectsError) throw projectsError;
 
+      // 2. Fetch Latest Updates (Optimization: specific columns)
       const { data: updatesData, error: updatesError } = await supabase
         .from('project_daily_updates')
         .select('project_id, status_today, update_date, created_at')
@@ -30,7 +40,10 @@ export const Dashboard: React.FC = () => {
 
       if (updatesError) throw updatesError;
 
+      // 3. Merge Data
       const merged: DashboardProject[] = projectsData.map(p => {
+        // Find the most recent update for this project
+        // Note: updatesData is ordered by created_at desc, so find() gets the latest
         const latest = updatesData?.find(u => u.project_id === p.id);
         return {
             ...p,
@@ -42,8 +55,7 @@ export const Dashboard: React.FC = () => {
       });
 
       setProjects(merged);
-      setFilteredProjects(merged);
-
+      
     } catch (err: any) {
       console.error('Dashboard Error:', err);
       setError('Failed to load dashboard data. Check database connection.');
@@ -52,21 +64,51 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const fetchTypes = async () => {
+      const { data } = await supabase.from('project_types').select('name').order('name');
+      if (data) setProjectTypes(data.map(t => t.name));
+  };
 
   useEffect(() => {
-      if (filterStatus === 'All') {
-          setFilteredProjects(projects);
-      } else if (filterStatus === 'At Risk') {
-           setFilteredProjects(projects.filter(p => p.active && (p.latest_update?.status_today === 'At Risk' || p.latest_update?.status_today === 'Delayed')));
-      } else if (filterStatus === 'Active') {
-          setFilteredProjects(projects.filter(p => p.active));
-      } else {
-          setFilteredProjects(projects);
+    fetchDashboardData();
+    fetchTypes();
+  }, []);
+
+  // Filter Logic
+  useEffect(() => {
+      let result = projects;
+
+      // 1. Lifecycle
+      if (lifecycleFilter === 'Active') {
+          result = result.filter(p => p.active);
+      } else if (lifecycleFilter === 'Archived') {
+          result = result.filter(p => !p.active);
       }
-  }, [filterStatus, projects]);
+
+      // 2. Type
+      if (typeFilter !== 'All') {
+          result = result.filter(p => p.type === typeFilter);
+      }
+
+      // 3. Status
+      if (statusFilter !== 'All') {
+          result = result.filter(p => {
+             const currentStatus = p.latest_update?.status_today || 'No Update';
+             return currentStatus === statusFilter;
+          });
+      }
+
+      // 4. Search
+      if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          result = result.filter(p => 
+              p.project_name.toLowerCase().includes(q) || 
+              p.owner.toLowerCase().includes(q)
+          );
+      }
+
+      setFilteredProjects(result);
+  }, [projects, lifecycleFilter, typeFilter, statusFilter, searchQuery]);
 
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete "${name}"?\nThis action cannot be undone.`)) {
@@ -85,6 +127,15 @@ export const Dashboard: React.FC = () => {
   const totalProjects = projects.length;
   const activeProjects = projects.filter(p => p.active).length;
   const atRiskCount = projects.filter(p => p.active && (p.latest_update?.status_today === 'At Risk' || p.latest_update?.status_today === 'Delayed')).length;
+
+  const hasActiveFilters = searchQuery !== '' || typeFilter !== 'All' || statusFilter !== 'All' || lifecycleFilter !== 'Active';
+
+  const resetFilters = () => {
+      setSearchQuery('');
+      setTypeFilter('All');
+      setStatusFilter('All');
+      setLifecycleFilter('Active');
+  };
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-500">
@@ -154,29 +205,86 @@ export const Dashboard: React.FC = () => {
         />
       </div>
 
+      {/* Filter Bar */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col xl:flex-row gap-4 justify-between">
+                <div className="flex flex-col md:flex-row gap-4 flex-1">
+                    {/* Search */}
+                    <div className="relative flex-1 min-w-[200px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input 
+                            type="text" 
+                            placeholder="Search projects or owners..." 
+                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Type Filter */}
+                    <div className="relative md:w-48">
+                        <select 
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                        >
+                            <option value="All">All Types</option>
+                            {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="relative md:w-48">
+                         <select 
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                        >
+                            <option value="All">All Statuses</option>
+                            <option value="On Track">On Track</option>
+                            <option value="At Risk">At Risk</option>
+                            <option value="Delayed">Delayed</option>
+                            <option value="Completed">Completed</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="No Update">No Update</option>
+                        </select>
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+
+                    {/* Lifecycle Filter */}
+                     <div className="relative md:w-40">
+                         <select 
+                            value={lifecycleFilter}
+                            onChange={(e) => setLifecycleFilter(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer font-medium text-slate-600"
+                        >
+                            <option value="Active">Active Only</option>
+                            <option value="Archived">Archived</option>
+                            <option value="All">Everything</option>
+                        </select>
+                        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                </div>
+
+                {hasActiveFilters && (
+                    <button 
+                        onClick={resetFilters}
+                        className="flex items-center justify-center px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                    >
+                        <X size={16} className="mr-1" /> Clear Filters
+                    </button>
+                )}
+            </div>
+      </div>
+
       {/* Main Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        {/* Table Header / Filters */}
-        <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white">
+        {/* Table Header / Stats */}
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
             <div className="flex items-center gap-2">
-                <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wide">Project Status</h3>
+                <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wide">Projects List</h3>
                 <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs font-semibold">{filteredProjects.length}</span>
-            </div>
-            
-            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg border border-slate-200">
-                {['All', 'Active', 'At Risk'].map(filter => (
-                    <button
-                        key={filter}
-                        onClick={() => setFilterStatus(filter)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                            filterStatus === filter 
-                                ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
-                                : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                        {filter}
-                    </button>
-                ))}
             </div>
         </div>
 
@@ -191,7 +299,10 @@ export const Dashboard: React.FC = () => {
                     <Filter size={20} />
                 </div>
                 <p className="font-medium text-slate-600">No projects found</p>
-                <p className="text-sm mt-1">Adjust your filters or create a new project.</p>
+                <p className="text-sm mt-1">Adjust your filters to see more results.</p>
+                {hasActiveFilters && (
+                    <button onClick={resetFilters} className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-bold">Clear all filters</button>
+                )}
             </div>
         ) : (
             <div className="overflow-x-auto">
@@ -236,9 +347,9 @@ export const Dashboard: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">
                                         <div className="flex items-center gap-2">
                                             <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-500">
-                                                {p.owner.charAt(0)}
+                                                {(p.owner || '?').charAt(0)}
                                             </div>
-                                            {p.owner}
+                                            {p.owner || 'Unassigned'}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
