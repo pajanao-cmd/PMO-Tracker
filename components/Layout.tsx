@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { LayoutDashboard, Settings, Bell, User, NotebookPen, PlusCircle, ChevronRight, Search, Command, BarChart3, Layers, Menu, X, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Settings, Bell, User, NotebookPen, PlusCircle, ChevronRight, Search, Command, BarChart3, Layers, Menu, X, ShieldCheck, Banknote } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -54,6 +54,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <div className="mb-2 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Overview</div>
             <nav className="space-y-1 mb-8">
               <NavLink to="/dashboard" icon={<LayoutDashboard size={18} />} label="Executive Dashboard" active={isActive('/dashboard')} />
+              <NavLink to="/pipeline" icon={<Banknote size={18} />} label="Project Portfolio Dashboard" active={isActive('/pipeline')} />
               <NavLink to="/projects/new" icon={<PlusCircle size={18} />} label="New Project" active={isActive('/projects/new')} />
             </nav>
 

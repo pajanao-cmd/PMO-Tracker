@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings, DollarSign, Repeat, ShieldCheck, Clock } from 'lucide-react';
+import { Save, Calendar, User, Tag, ArrowRight, LayoutDashboard, Loader2, AlertCircle, Trash2, CheckCircle2, XCircle, Eye, Percent, Settings, DollarSign, Repeat, ShieldCheck, Clock, FastForward } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { ProjectTypeManager } from '../components/ProjectTypeManager';
-import { ProjectType } from '../types';
+import { ProjectType, ProjectStatus } from '../types';
 
 export const EditProject: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +23,9 @@ export const EditProject: React.FC = () => {
     end_date: '',
     active: true,
     progress: 0,
+    probability: 0, // NEW
+    next_action: '', // NEW
+    status: 'On Track', // Added explicit status control
     total_budget: '',
     billing_cycle_count: 1,
     has_ma: false,
@@ -70,6 +73,9 @@ export const EditProject: React.FC = () => {
                     end_date: data.end_date,
                     active: data.active,
                     progress: data.progress || 0,
+                    probability: data.probability || 0,
+                    next_action: data.next_action || '',
+                    status: data.status || 'On Track',
                     total_budget: data.total_budget || '',
                     billing_cycle_count: data.billing_cycle_count || 1,
                     has_ma: data.has_ma || false,
@@ -84,7 +90,7 @@ export const EditProject: React.FC = () => {
         }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     
     setFormData(prev => {
@@ -128,6 +134,9 @@ export const EditProject: React.FC = () => {
                 end_date: formData.end_date,
                 active: formData.active,
                 progress: formData.progress,
+                probability: formData.probability ? parseInt(String(formData.probability)) : 0,
+                next_action: formData.next_action,
+                status: formData.status as ProjectStatus,
                 total_budget: formData.total_budget ? parseFloat(String(formData.total_budget)) : 0,
                 billing_cycle_count: formData.billing_cycle_count,
                 has_ma: formData.has_ma,
@@ -331,6 +340,69 @@ export const EditProject: React.FC = () => {
                 </div>
             </div>
 
+            {/* Sales Pipeline Section (NEW) */}
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="md:col-span-2 text-xs font-bold text-blue-600 uppercase tracking-wider border-b border-blue-200 pb-2 mb-2">
+                    Pipeline & Sales
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status / Stage</label>
+                    <div className="relative">
+                        <select
+                            name="status"
+                            value={formData.status}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 bg-white transition-all appearance-none"
+                        >
+                            <option value="Exploration">Exploration</option>
+                            <option value="Negotiation">Negotiation</option>
+                            <option value="On Track">Inprogress (On Track)</option>
+                            <option value="At Risk">At Risk</option>
+                            <option value="Delayed">Delayed</option>
+                            <option value="Completed">Completed</option>
+                            <option value="On Hold">On Hold</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Probability (%)</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                            <Percent size={18} />
+                        </div>
+                        <input
+                            type="number"
+                            name="probability"
+                            min="0"
+                            max="100"
+                            value={formData.probability}
+                            onChange={handleChange}
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 font-mono transition-all"
+                            placeholder="e.g. 75"
+                        />
+                    </div>
+                </div>
+
+                <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Next Action / Details</label>
+                    <div className="relative group">
+                        <div className="absolute top-3 left-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                            <FastForward size={18} />
+                        </div>
+                        <textarea
+                            name="next_action"
+                            rows={2}
+                            value={formData.next_action}
+                            onChange={handleChange}
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all resize-none"
+                            placeholder="e.g. Submit Proposal by next Friday"
+                        />
+                    </div>
+                </div>
+            </div>
+
             {/* Financials Section */}
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="md:col-span-2 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-2 mb-2">
@@ -339,7 +411,7 @@ export const EditProject: React.FC = () => {
                 
                 {/* Total Budget */}
                 <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Project Value</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Revenue / Budget</label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-green-600 transition-colors">
                             <DollarSign size={18} />

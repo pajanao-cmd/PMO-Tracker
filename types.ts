@@ -9,13 +9,17 @@ export interface Project {
   start_date: string; // date string YYYY-MM-DD
   end_date: string;   // date string YYYY-MM-DD
   active: boolean;
-  progress: number; // 0-100
-  total_budget: number; // New field
-  billing_cycle_count: number; // New field
-  has_ma: boolean; // New field for Maintenance Agreement
-  ma_start_date?: string; // New field
-  ma_end_date?: string; // New field
-  ma_support_hours_total?: number; // New field for MA Allowance
+  status?: string;
+  progress: number; // 0-100 (Execution progress)
+  probability: number; // 0-100 (Sales probability) - NEW
+  next_action: string; // Sales next step - NEW
+  total_budget: number; // Used as Revenue
+  budget_consumed_percent?: number; // 0-100
+  billing_cycle_count: number; 
+  has_ma: boolean; 
+  ma_start_date?: string; 
+  ma_end_date?: string; 
+  ma_support_hours_total?: number; 
   created_at: string;
 }
 
@@ -71,7 +75,9 @@ export interface DashboardProject extends Project {
 
 // Enums
 export enum ProjectStatus {
-  ON_TRACK = 'On Track',
+  EXPLORATION = 'Exploration', // Pre-sales
+  NEGOTIATION = 'Negotiation', // Pre-sales
+  ON_TRACK = 'On Track',       // Execution (Inprogress)
   AT_RISK = 'At Risk',
   DELAYED = 'Delayed',
   COMPLETED = 'Completed',
@@ -161,6 +167,8 @@ export interface ProjectDetail {
   ma_end_date?: string; 
   ma_support_hours_total?: number;
   progress: number;
+  probability?: number;
+  next_action?: string;
   tags: string[];
   start_date: string;
   end_date: string;
@@ -171,5 +179,5 @@ export interface ProjectDetail {
   };
   updates: WeeklyUpdate[];
   milestones: Milestone[];
-  billings?: BillingInstallment[]; // Added billings to detailed view
+  billings?: BillingInstallment[]; 
 }

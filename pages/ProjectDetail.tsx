@@ -972,9 +972,14 @@ export const ProjectDetail: React.FC = () => {
                 <div className="flex flex-col gap-1">
                      <div className="text-sm font-bold text-slate-900 flex items-center gap-2">
                          {project.total_budget ? (
-                            new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(project.total_budget)
+                            new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(project.total_budget)
                          ) : (
                             <span className="text-slate-400 italic">Not set</span>
+                         )}
+                         {project.billing_cycle_count > 0 && (
+                             <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-medium whitespace-nowrap">
+                                {project.billing_cycle_count} Cycles
+                             </span>
                          )}
                      </div>
                      <div className="w-full bg-slate-200 rounded-full h-1.5 max-w-[140px]">
@@ -1333,27 +1338,37 @@ export const ProjectDetail: React.FC = () => {
                     {activeTab === 'finance' && (
                         <div className="p-6 space-y-6">
                             {/* Stats */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
                                     <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Total Collected</div>
                                     <div className="text-2xl font-bold text-slate-900">
-                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(totalPaid)}
+                                        {new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(totalPaid)}
                                     </div>
                                     <div className="w-full bg-emerald-200 h-1.5 rounded-full mt-2 overflow-hidden">
                                         <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${project.total_budget > 0 ? (totalPaid / project.total_budget) * 100 : 0}%` }}></div>
                                     </div>
                                 </div>
-                                <div className="p-4 bg-white border border-slate-200 rounded-lg border-dashed flex flex-col items-center justify-center">
-                                     <button 
-                                        onClick={() => {
-                                            setBillingFormData({ id: '', name: '', amount: '', due_date: '', status: BillingStatus.PENDING });
-                                            setIsBillingModalOpen(true);
-                                        }}
-                                        className="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-600 transition-colors"
-                                    >
+                                
+                                <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                                    <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Billing Cycles</div>
+                                    <div className="text-2xl font-bold text-slate-900">
+                                        {billings.length} <span className="text-sm text-slate-500 font-normal">/ {project.billing_cycle_count}</span>
+                                    </div>
+                                    <div className="text-[10px] text-blue-600 mt-1 font-medium">
+                                        {Math.max(0, project.billing_cycle_count - billings.length)} pending definition
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-white border border-slate-200 rounded-lg border-dashed flex flex-col items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer group"
+                                     onClick={() => {
+                                        setBillingFormData({ id: '', name: '', amount: '', due_date: '', status: BillingStatus.PENDING });
+                                        setIsBillingModalOpen(true);
+                                     }}
+                                >
+                                     <div className="flex flex-col items-center gap-1 text-slate-400 group-hover:text-emerald-600 transition-colors">
                                         <PlusCircle size={24} />
                                         <span className="text-sm font-bold">Add Installment</span>
-                                     </button>
+                                     </div>
                                 </div>
                             </div>
 
@@ -1383,7 +1398,7 @@ export const ProjectDetail: React.FC = () => {
                                                 <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                                                     <div className="text-right">
                                                         <div className="font-bold text-slate-900 text-sm">
-                                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.amount)}
+                                                            {new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(item.amount)}
                                                         </div>
                                                         {project.total_budget > 0 && (
                                                             <div className="text-[10px] text-slate-400">
