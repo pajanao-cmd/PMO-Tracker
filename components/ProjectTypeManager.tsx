@@ -138,21 +138,21 @@ export const ProjectTypeManager: React.FC<Props> = ({ isOpen, onClose, onChange 
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col max-h-[80vh]">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col max-h-[85vh]">
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-shrink-0">
-          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+          <h3 className="font-bold text-slate-900 flex items-center gap-2 text-base">
             Configuration
-            <span className="text-slate-400 font-medium text-sm">/ Project Types</span>
+            <span className="text-slate-400 font-medium text-xs sm:text-sm">/ Project Types</span>
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-200 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 rounded-full p-2 hover:bg-slate-200 transition-colors">
             <X size={20} />
           </button>
         </div>
 
         {errorMsg && (
             <div className="bg-red-50 p-3 text-xs text-red-600 font-bold border-b border-red-100 flex items-center gap-2">
-                <AlertCircle size={14} />
-                {errorMsg}
+                <AlertCircle size={14} className="flex-shrink-0" />
+                <span>{errorMsg}</span>
             </div>
         )}
 
@@ -171,24 +171,24 @@ export const ProjectTypeManager: React.FC<Props> = ({ isOpen, onClose, onChange 
                         type="text" 
                         value={editValue} 
                         onChange={e => setEditValue(e.target.value)}
-                        className="flex-1 px-3 py-1.5 text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 text-base md:text-sm border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         autoFocus
                         disabled={actionLoading}
                         />
-                        <button onClick={saveEdit} disabled={actionLoading} className="text-emerald-600 p-1.5 hover:bg-emerald-50 rounded transition-colors">
-                            {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                        <button onClick={saveEdit} disabled={actionLoading} className="text-emerald-600 p-2 hover:bg-emerald-50 rounded transition-colors flex-shrink-0">
+                            {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
                         </button>
-                        <button onClick={() => { setEditingId(null); setErrorMsg(null); }} disabled={actionLoading} className="text-slate-400 p-1.5 hover:bg-slate-100 rounded transition-colors"><X size={16} /></button>
+                        <button onClick={() => { setEditingId(null); setErrorMsg(null); }} disabled={actionLoading} className="text-slate-400 p-2 hover:bg-slate-100 rounded transition-colors flex-shrink-0"><X size={18} /></button>
                     </div>
                     ) : (
                     <>
-                        <span className="text-sm font-bold text-slate-700">{type.name}</span>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => startEdit(type)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded transition-colors" title="Rename">
-                            <Edit2 size={14} />
+                        <span className="text-sm font-bold text-slate-700 break-all mr-2">{type.name}</span>
+                        <div className="flex items-center gap-1">
+                        <button onClick={() => startEdit(type)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded transition-colors" title="Rename">
+                            <Edit2 size={16} />
                         </button>
-                        <button onClick={() => handleDelete(type.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded transition-colors" title="Delete">
-                            <Trash2 size={14} />
+                        <button onClick={() => handleDelete(type.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded transition-colors" title="Delete">
+                            <Trash2 size={16} />
                         </button>
                         </div>
                     </>
@@ -203,17 +203,17 @@ export const ProjectTypeManager: React.FC<Props> = ({ isOpen, onClose, onChange 
             <input 
                 type="text" 
                 placeholder="Add new type..." 
-                className="flex-1 px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500 font-medium"
+                className="flex-1 px-3 py-2.5 rounded-lg border border-slate-300 text-base md:text-sm focus:border-blue-500 focus:ring-blue-500 font-medium"
                 value={newType}
                 onChange={e => setNewType(e.target.value)}
             />
             <button 
                 type="submit" 
                 disabled={actionLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-sm flex items-center gap-1 shadow-sm disabled:opacity-70"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-sm flex items-center gap-1 shadow-sm disabled:opacity-70 active:scale-95 transition-transform"
             >
-                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                Add
+                {actionLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                <span className="hidden sm:inline">Add</span>
             </button>
         </form>
       </div>

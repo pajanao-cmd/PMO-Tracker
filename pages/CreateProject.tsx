@@ -113,9 +113,9 @@ export const CreateProject: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="max-w-3xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-24 md:pb-20">
       
-      <div className="flex items-center gap-4 mb-2 md:mb-6">
+      <div className="flex items-center gap-4 mb-2 md:mb-6 px-1 md:px-0">
         <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 flex-shrink-0 transition-all">
             <Plus size={20} className="md:w-6 md:h-6" />
         </div>
@@ -125,7 +125,7 @@ export const CreateProject: React.FC = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white p-4 md:p-8 rounded-xl border border-slate-200 shadow-sm space-y-6 md:space-y-8">
+      <form onSubmit={handleSubmit} className="bg-white p-5 md:p-8 rounded-xl border border-slate-200 shadow-sm space-y-6 md:space-y-8">
         
         {errorMsg && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm font-medium">
@@ -147,7 +147,7 @@ export const CreateProject: React.FC = () => {
                     required
                     value={formData.project_name}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400 font-medium transition-all"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400 font-medium transition-all text-base md:text-sm"
                     placeholder="e.g. ERP Migration Phase 1"
                     autoFocus
                 />
@@ -162,9 +162,9 @@ export const CreateProject: React.FC = () => {
                     <button 
                         type="button" 
                         onClick={() => setIsTypeManagerOpen(true)}
-                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors whitespace-nowrap"
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:bg-blue-50 px-2 py-1 rounded transition-colors whitespace-nowrap active:bg-blue-100"
                     >
-                        <Settings size={10} /> Manage Types
+                        <Settings size={12} /> Manage Types
                     </button>
                 </div>
                 <div className="relative group">
@@ -175,7 +175,7 @@ export const CreateProject: React.FC = () => {
                         name="type"
                         value={formData.type}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 bg-white transition-all appearance-none"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 bg-white transition-all appearance-none text-base md:text-sm"
                     >
                         {projectTypes.length > 0 ? (
                             projectTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)
@@ -199,7 +199,7 @@ export const CreateProject: React.FC = () => {
                         required
                         value={formData.owner}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400 font-medium transition-all"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 placeholder:text-slate-400 font-medium transition-all text-base md:text-sm"
                         placeholder="e.g. Somchai Jai-dee"
                     />
                 </div>
@@ -219,7 +219,7 @@ export const CreateProject: React.FC = () => {
                         value={formData.start_date}
                         onChange={handleChange}
                         onClick={(e) => (e.target as any).showPicker?.()}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all cursor-pointer appearance-none"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all cursor-pointer appearance-none text-base md:text-sm"
                     />
                 </div>
             </div>
@@ -239,7 +239,7 @@ export const CreateProject: React.FC = () => {
                         value={formData.end_date}
                         onChange={handleChange}
                         onClick={(e) => (e.target as any).showPicker?.()}
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all cursor-pointer appearance-none"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all cursor-pointer appearance-none text-base md:text-sm"
                     />
                 </div>
             </div>
@@ -264,7 +264,7 @@ export const CreateProject: React.FC = () => {
                             step="0.01"
                             value={formData.total_budget}
                             onChange={handleChange}
-                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-green-500 focus:ring-green-500 shadow-sm text-slate-900 font-mono transition-all"
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-green-500 focus:ring-green-500 shadow-sm text-slate-900 font-mono transition-all text-base md:text-sm"
                             placeholder="0.00"
                         />
                     </div>
@@ -284,7 +284,7 @@ export const CreateProject: React.FC = () => {
                             step="1"
                             value={formData.billing_cycle_count}
                             onChange={handleChange}
-                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all"
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-blue-500 shadow-sm text-slate-900 transition-all text-base md:text-sm"
                             placeholder="e.g. 4"
                         />
                     </div>
@@ -328,27 +328,27 @@ export const CreateProject: React.FC = () => {
                 />
 
                 <div className="flex justify-between text-[10px] text-slate-400 mt-2 font-mono font-medium select-none">
-                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 0}))} className="hover:text-blue-600 transition-colors">0%</button>
-                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 25}))} className="hover:text-blue-600 transition-colors">25%</button>
-                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 50}))} className="hover:text-blue-600 transition-colors">50%</button>
-                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 75}))} className="hover:text-blue-600 transition-colors">75%</button>
-                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 100}))} className="hover:text-blue-600 transition-colors">100%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 0}))} className="hover:text-blue-600 transition-colors p-1">0%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 25}))} className="hover:text-blue-600 transition-colors p-1">25%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 50}))} className="hover:text-blue-600 transition-colors p-1">50%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 75}))} className="hover:text-blue-600 transition-colors p-1">75%</button>
+                    <button type="button" onClick={() => setFormData(prev => ({...prev, progress: 100}))} className="hover:text-blue-600 transition-colors p-1">100%</button>
                 </div>
             </div>
         </div>
 
-        <div className="pt-6 border-t border-slate-100 flex flex-col-reverse md:flex-row justify-end gap-3">
+        <div className="pt-6 border-t border-slate-100 flex flex-col-reverse md:flex-row justify-end gap-3 md:gap-4">
              <button
                 type="button"
                 onClick={() => navigate('/dashboard')}
-                className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-bold text-sm w-full md:w-auto"
+                className="px-6 py-3.5 md:py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-bold text-sm w-full md:w-auto active:scale-95"
             >
                 Cancel
             </button>
             <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 text-sm w-full md:w-auto"
+                className="px-8 py-3.5 md:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 text-sm w-full md:w-auto active:scale-95"
             >
                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
                 Create Project
